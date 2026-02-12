@@ -4,9 +4,10 @@ Get direct image and video URLs from Pinterest:)
 
 ![Pinterest-DL Demo](https://cdn.imgurl.ir/uploads/k178865_IMG_2555-ezgif_com-video-to-gif-converter.gif)
 
+## Installation
+
 ```ruby
 gem install pinterest-dl
-
 ```
 
 ## Usage
@@ -15,15 +16,25 @@ gem install pinterest-dl
 require 'pinterest-dl'
 ```
 
+### Get image url
 
-# Get image url
-```ruby 
-url = PinterestDL.get_image_url('link')
-```
-=> "https://i.pinimg.com/originals/8e/2a/..."
-
-# Get video url
 ```ruby
-url = PinterestDL.get_video_url('link')
+url = PinterestDL.get_image_url('https://www.pinterest.com/pin/example/')
+# => "https://i.pinimg.com/originals/8e/2a/..."
 ```
-=> "https://v.pinimg.com/videos/..."
+
+###  Get video url
+
+```ruby
+url = PinterestDL.get_video_url('https://www.pinterest.com/pin/example/')
+# => "https://v.pinimg.com/videos/..."
+```
+
+##  Links
+
+- [RubyGem](https://rubygems.org/gems/pinterest-dl)
+- [GitHub](https://github.com/monji024/pinterest-dl)
+
+##  License
+
+MIT © [monji024](https://github.com/monji024)
