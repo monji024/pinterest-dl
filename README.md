@@ -2,7 +2,7 @@
 
 Get direct image and video URLs from Pinterest:)
 
-![Demo](https://n.uguu.se/QzYPXMZp.gif)
+![Demo](./demo.gif)
 
 ## Installation
 
