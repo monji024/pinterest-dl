@@ -2,7 +2,7 @@
 
 Get direct image and video URLs from Pinterest:)
 
-![Demo](./demo.gif)
+![Demo](./test.gif)
 
 ## Installation
 
