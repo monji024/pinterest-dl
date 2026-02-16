@@ -2,7 +2,7 @@
 
 Get direct image and video URLs from Pinterest:)
 
-![Pinterest-DL Demo](https://cdn.imgurl.ir/uploads/k178865_IMG_2555-ezgif_com-video-to-gif-converter.gif)
+![Demo](https://n.uguu.se/QzYPXMZp.gif)
 
 ## Installation
 
