@@ -4,6 +4,8 @@ Get direct image and video URLs from Pinterest:)
 
 ![Demo](https://github.com/monji024/pinterest-dl/raw/main/test.gif)
 
+Using a VPN is important for those in Iran!!!
+
 ## Installation
 
 ```ruby
