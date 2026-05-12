@@ -7,7 +7,9 @@
 [![Ruby](https://img.shields.io/badge/Ruby-2.5+-red)]()
 
 </div>
+
 ---
+
 Get direct image and video URLs from Pinterest:)
 
 ![Demo](https://github.com/monji024/pinterest-dl/raw/main/test.gif)
