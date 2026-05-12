@@ -1,5 +1,13 @@
-# pinterest-dl
+<div align="center">
 
+# pinterest-dl
+---
+[![Gem](https://img.shields.io/gem/dt/pinterest-dl?style=for-the-badge)](https://rubygems.org/gems/pinterest-dl)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![Ruby](https://img.shields.io/badge/Ruby-2.5+-red)]()
+
+</div>
+---
 Get direct image and video URLs from Pinterest:)
 
 ![Demo](https://github.com/monji024/pinterest-dl/raw/main/test.gif)
