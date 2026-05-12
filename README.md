@@ -7,6 +7,7 @@
 [![Gem Downloads](https://img.shields.io/gem/dt/pinterest-dl)](https://rubygems.org/gems/pinterest-dl)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 [![Ruby](https://img.shields.io/badge/Ruby-2.5+-red)]()
+<img src="https://img.icons8.com/color/96/000000/pinterest--v1.png" width="80">
 
 </div>
 
