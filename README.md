@@ -2,6 +2,7 @@
 
 # pinterest-dl
 
+---
 
 [![Gem Downloads](https://img.shields.io/gem/dt/pinterest-dl)](https://rubygems.org/gems/pinterest-dl)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
