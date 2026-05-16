@@ -2,4 +2,8 @@
 
 source 'https://rubygems.org'
 
-# step-0
+gemspec
+
+group :development do
+
+# step-1
