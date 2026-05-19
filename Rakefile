@@ -10,5 +10,9 @@ end
 
 begin
   require 'rubocop/rake_task'
+  RuboCop::RakeTask.new(:rubocop)
+rescue LoadError
+  task(:rubocop) { warn 'rubocop not installed, skipping' }
+end
 
-# step-1
+task default: %i[test rubocop]
