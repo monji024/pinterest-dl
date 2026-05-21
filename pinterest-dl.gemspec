@@ -21,5 +21,11 @@ Gem::Specification.new do |s|
 
   s.required_ruby_version = '>= 2.7.0'
 
-
-# step-2
+  s.metadata = {
+    'source_code_uri' => 'https://github.com/monji024/pinterest-dl',
+    'bug_tracker_uri' => 'https://github.com/monji024/pinterest-dl/issues',
+    'changelog_uri' => 'https://github.com/monji024/pinterest-dl/blob/main/CHANGELOG.md',
+    'rubygems_mfa_required' => 'true',
+    'documentation_uri' => 'https://rubydoc.info/gems/pinterest-dl'
+  }
+end
