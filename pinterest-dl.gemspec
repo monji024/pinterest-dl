@@ -13,5 +13,13 @@ Gem::Specification.new do |s|
   s.authors     = ['Monji']
   s.email       = 'hoseinmonjiofficial@gmail.com'
   s.homepage    = 'https://github.com/monji024/pinterest-dl'
+  s.license     = 'WTFPL'
 
-# step-1
+  s.files       = Dir['lib/**/*.rb'] + Dir['bin/*'] + ['README.md', 'LICENSE', 'CHANGELOG.md']
+  s.executables = ['pinterest-dl']
+  s.require_paths = ['lib']
+
+  s.required_ruby_version = '>= 2.7.0'
+
+
+# step-2
