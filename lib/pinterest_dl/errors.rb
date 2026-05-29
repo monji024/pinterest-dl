@@ -17,5 +17,15 @@ module PinterestDL
   class NotFoundError < Error
     def initialize(message = 'The requested resource was not found')
       super
+    end
+  end
 
-# step-1
+  class RateLimitError < Error
+    attr_reader :retry_after
+
+    def initialize(message = 'Rate limited by Pinterest', retry_after: nil)
+      @retry_after = retry_after
+      super(message)
+    end
+
+# step-2
