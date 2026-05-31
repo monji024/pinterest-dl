@@ -37,5 +37,13 @@ module PinterestDL
 
   class InvalidURLError < Error
     def initialize(message = 'The given URL does not look like a valid Pinterest URL')
+      super
+    end
+  end
 
-# step-3
+  class DownloadError < Error
+    def initialize(message = 'Failed to download file')
+      super
+    end
+  end
+end
