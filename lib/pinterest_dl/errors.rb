@@ -27,5 +27,15 @@ module PinterestDL
       @retry_after = retry_after
       super(message)
     end
+  end
 
-# step-2
+  class AuthenticationError < Error
+    def initialize(message = 'Authentication required (set PinterestDL.configure { |c| c.cookies = ... })')
+      super
+    end
+  end
+
+  class InvalidURLError < Error
+    def initialize(message = 'The given URL does not look like a valid Pinterest URL')
+
+# step-3
