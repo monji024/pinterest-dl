@@ -30,5 +30,16 @@ module PinterestDL
       @quality = :originals
       @rate_limit_interval = 0.0
       @proxy = ENV['HTTPS_PROXY'] || ENV['https_proxy'] || ENV['HTTP_PROXY'] || ENV['http_proxy']
+      @max_cache_entries = 256
+      @concurrency = 4
+      @overwrite = true
+      @logger = default_logger
+      self
+    end
 
-# step-2
+    def quality=(value)
+      value = value.to_sym
+      valid = VALID_QUALITIES.join(', ')
+      raise ArgumentError, "quality must be one of: #{valid}" unless VALID_QUALITIES.include?(value)
+
+# step-3
