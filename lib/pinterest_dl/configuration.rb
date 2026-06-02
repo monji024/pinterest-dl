@@ -19,5 +19,16 @@ module PinterestDL
       reset!
     end
 
+    def reset!
+      @user_agent = DEFAULT_USER_AGENT
+      @cookies = nil
+      @open_timeout = 10
+      @read_timeout = 20
+      @write_timeout = 20
+      @max_retries = 3
+      @retry_wait = 1.0
+      @quality = :originals
+      @rate_limit_interval = 0.0
+      @proxy = ENV['HTTPS_PROXY'] || ENV['https_proxy'] || ENV['HTTP_PROXY'] || ENV['http_proxy']
 
-# step-1
+# step-2
