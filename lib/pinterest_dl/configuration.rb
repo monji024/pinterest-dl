@@ -42,4 +42,14 @@ module PinterestDL
       valid = VALID_QUALITIES.join(', ')
       raise ArgumentError, "quality must be one of: #{valid}" unless VALID_QUALITIES.include?(value)
 
-# step-3
+      @quality = value
+    end
+
+    def cookies=(value)
+      if value.nil? || value.to_s.strip.empty?
+        @cookies = nil
+        return
+      end
+
+
+# step-4
