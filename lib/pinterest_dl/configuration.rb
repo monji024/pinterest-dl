@@ -62,5 +62,16 @@ module PinterestDL
       @concurrency = num
     end
 
+    def authenticated?
+      !@cookies.nil? && !@cookies.empty?
+    end
 
-# step-5
+    private
+
+    def parse_cookie_file(path)
+      pairs = []
+      File.foreach(path) do |line|
+        stripped = line.strip
+        next if stripped.empty? || stripped.start_with?('#')
+
+# step-6
