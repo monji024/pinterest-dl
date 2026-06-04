@@ -51,5 +51,16 @@ module PinterestDL
         return
       end
 
+      raw = value.to_s.strip
+      @cookies = File.file?(raw) ? parse_cookie_file(raw) : raw
+    end
 
-# step-4
+    def concurrency=(value)
+      num = value.to_i
+      raise ArgumentError, 'concurrency must be at least 1' if num < 1
+
+      @concurrency = num
+    end
+
+
+# step-5
