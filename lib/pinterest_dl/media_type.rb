@@ -6,5 +6,13 @@ module PinterestDL
 
     module_function
 
+    def parse(value)
+      normalized = value.nil? || value.to_s.strip.empty? ? :all : value.to_s.strip.downcase.to_sym
+      return normalized if TYPES.include?(normalized)
 
-# step-0
+      raise ArgumentError, "type must be one of: #{TYPES.join(', ')}"
+    end
+
+    def filter(pins, type)
+
+# step-1
