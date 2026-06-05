@@ -74,4 +74,15 @@ module PinterestDL
         stripped = line.strip
         next if stripped.empty? || stripped.start_with?('#')
 
-# step-6
+        fields = stripped.split("\t")
+        if fields.size >= 7
+          domain, _flag, _path, _secure, _expiry, name, val = fields
+          next unless domain.include?('pinterest.')
+
+          pairs << "#{name}=#{val}"
+        elsif stripped.include?('=') && !stripped.include?("\t")
+          pairs << stripped
+        end
+      end
+
+# step-7
