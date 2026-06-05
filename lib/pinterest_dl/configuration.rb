@@ -84,5 +84,14 @@ module PinterestDL
           pairs << stripped
         end
       end
+      pairs.join('; ')
+    end
 
-# step-7
+    def default_logger
+      Logger.new($stderr).tap do |log|
+        log.level = Logger::WARN
+        log.formatter = proc { |severity, _time, _progname, msg| "[pinterest-dl] #{severity}: #{msg}\n" }
+      end
+    end
+  end
+end
