@@ -14,5 +14,11 @@ module PinterestDL
     end
 
     def filter(pins, type)
-
-# step-1
+      case parse(type)
+      when :image then pins.select { |p| p[:image_url] && !p[:video_url] }
+      when :video then pins.select { |p| p[:video_url] }
+      else pins
+      end
+    end
+  end
+end
