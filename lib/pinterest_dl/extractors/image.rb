@@ -23,5 +23,14 @@ module PinterestDL
         apply_quality(url, quality)
       end
 
+      def from_json_ld(html)
+        PinterestDL::Extractors::JsonLd.content_url(html, 'ImageObject')
+      end
 
-# step-2
+      def from_open_graph(html)
+        PinterestDL::Extractors::Meta.content(html, 'og:image')
+      end
+
+      def from_raw_pattern(html)
+
+# step-3
