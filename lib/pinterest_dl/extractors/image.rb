@@ -16,4 +16,12 @@ module PinterestDL
 
       module_function
 
-# step-1
+      def extract(html, quality: :originals)
+        url = from_json_ld(html) || from_open_graph(html) || from_raw_pattern(html)
+        return nil unless url
+
+        apply_quality(url, quality)
+      end
+
+
+# step-2
