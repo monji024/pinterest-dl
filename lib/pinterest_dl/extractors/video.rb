@@ -16,4 +16,21 @@ module PinterestDL
         PinterestDL::Extractors::JsonLd.content_url(html, 'VideoObject')
       end
 
-# step-0
+      def from_open_graph(html)
+        PinterestDL::Extractors::Meta.content(html, 'og:video')
+      end
+
+      def from_content_url(html)
+        match = html.to_s.match(/"contentUrl"\s*:\s*"([^"]+\.mp4[^"]*)"/)
+        match && match[1]
+      end
+
+      def from_raw_pattern(html)
+        clean = html.to_s.gsub('\\u002F', '/').gsub('\\/', '/')
+        match = clean.match(%r{https://v\d*\.pinimg\.com/videos/[^"'\s\\<>]+?\.mp4})
+        match && match[0]
+      end
+
+      def unescape(url)
+
+# step-1
