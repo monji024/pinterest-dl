@@ -32,5 +32,23 @@ module PinterestDL
       end
 
       def unescape(url)
+        url.to_s.gsub('\\u002F', '/').gsub('\\', '')
+      end
+    end
 
-# step-1
+    module Meta
+      module_function
+
+      def content(html, key)
+        html.to_s.scan(/<meta\b[^>]*>/i).each do |tag|
+          next unless tag.match?(/(?:property|name)=["']#{Regexp.escape(key)}["']/i)
+
+          match = tag.match(/content=["']([^"']+)["']/i)
+          return match[1] if match
+        end
+        nil
+      end
+    end
+
+
+# step-2
