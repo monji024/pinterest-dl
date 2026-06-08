@@ -67,5 +67,21 @@ module PinterestDL
           current = stack.pop
           case current
           when Hash
+            return current['contentUrl'] if current['@type'] == type && current['contentUrl']
 
-# step-3
+            stack.concat(current.values)
+          when Array
+            stack.concat(current)
+          end
+        end
+        nil
+      end
+
+      def safe_parse(raw)
+        JSON.parse(raw)
+      rescue JSON::ParserError
+        nil
+      end
+    end
+  end
+end
