@@ -32,5 +32,13 @@ module PinterestDL
       end
 
       def from_raw_pattern(html)
+        match = html.to_s.match(
+          %r{https://i\d*\.pinimg\.com/(?:originals|1200x|736x|564x|474x|236x)/[A-Za-z0-9_\-/]+\.(?:jpg|jpeg|png|gif|webp)}i
+        )
+        match && match[0]
+      end
 
-# step-3
+      def apply_quality(url, quality)
+        return url unless url.to_s.match?(%r{i\d*\.pinimg\.com}i)
+
+# step-4
