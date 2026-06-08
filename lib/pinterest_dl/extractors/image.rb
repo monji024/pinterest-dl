@@ -41,4 +41,11 @@ module PinterestDL
       def apply_quality(url, quality)
         return url unless url.to_s.match?(%r{i\d*\.pinimg\.com}i)
 
-# step-4
+        target = QUALITY_PATH[quality.to_sym]
+        return url unless target
+
+        url.sub(%r{/#{BUCKET_REGEX}/}, "/#{target}/")
+      end
+    end
+  end
+end
