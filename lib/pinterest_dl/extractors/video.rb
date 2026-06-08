@@ -50,5 +50,22 @@ module PinterestDL
       end
     end
 
+    module JsonLd
+      module_function
 
-# step-2
+      def content_url(html, type)
+        html.to_s.scan(%r{<script[^>]*type=["']application/ld\+json["'][^>]*>(.*?)</script>}m).each do |(raw)|
+          found = find_type_url(safe_parse(raw), type)
+          return found if found
+        end
+        nil
+      end
+
+      def find_type_url(node, type)
+        stack = [node]
+        until stack.empty?
+          current = stack.pop
+          case current
+          when Hash
+
+# step-3
