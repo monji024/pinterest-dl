@@ -37,5 +37,24 @@ module PinterestDL
               pins << pin if pin
               stack.concat(node.values)
             when Array
+              stack.concat(node)
+            end
+          end
+        end
+        pins
+      end
 
-# step-1
+      def build_pin_hash(raw, quality: :originals)
+        return nil unless raw.is_a?(Hash)
+        return nil if raw['type'] && raw['type'] != 'pin'
+
+        id = raw['id']
+        img = best_image_url(raw)
+        video = first_video_url(raw)
+        return nil unless id && (img || video)
+
+        {
+          id: id.to_s,
+          pin_url: "https://www.pinterest.com/pin/#{id}/",
+
+# step-2
