@@ -56,5 +56,25 @@ module PinterestDL
         {
           id: id.to_s,
           pin_url: "https://www.pinterest.com/pin/#{id}/",
+          title: raw['title'] || raw['grid_title'],
+          description: raw['description'],
+          creator: raw.dig('pinner', 'username') || raw.dig('pinner', 'full_name'),
+          image_url: img && PinterestDL::Extractors::Image.apply_quality(img, quality),
+          video_url: video
+        }
+      end
 
-# step-2
+      def build_result(pin)
+        {
+          image_url: best_image_url(pin),
+          video_url: first_video_url(pin),
+          title: pin['title'] || pin['grid_title'],
+          description: pin['description'],
+          creator: pin.dig('pinner', 'username') || pin.dig('pinner', 'full_name')
+        }
+      end
+
+      def best_image_url(pin)
+        return nil unless pin.is_a?(Hash)
+
+# step-3
