@@ -134,5 +134,25 @@ module PinterestDL
         return nil unless video_list.is_a?(Hash)
 
         formats = video_list.values.select { |v| v.is_a?(Hash) && v['url'] }
+        mp4s = formats.select { |v| v['url'].include?('.mp4') }
+        best = mp4s.max_by { |v| v['width'].to_i * v['height'].to_i }
+        return best['url'] if best
 
-# step-6
+        hls = formats.find { |v| v['url'].include?('.m3u8') }
+        hls && hls_to_mp4(hls['url'])
+      end
+
+      def hls_to_mp4(url)
+        if url.include?('/iht/hls/')
+          url.sub('/hls/', '/expMp4/').sub(/\.m3u8.*\z/, '_720w.mp4')
+        else
+          url.sub('/hls/', '/720p/').sub(/\.m3u8.*\z/, '.mp4')
+        end
+      end
+
+      def deep_find(node, key)
+        stack = [node]
+        until stack.empty?
+          current = stack.pop
+
+# step-7
