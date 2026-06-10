@@ -95,5 +95,25 @@ module PinterestDL
       end
 
       def find_pin_node(data, pin_id = nil)
+        matches = []
+        stack = [data]
+        until stack.empty?
+          node = stack.pop
+          case node
+          when Hash
+            if pin_id
+              matches << node if node['id'].to_s == pin_id.to_s && has_media?(node)
+            elsif pin_like?(node)
+              return node
+            end
+            stack.concat(node.values)
+          when Array
+            stack.concat(node)
+          end
+        end
+        matches.find { |n| first_video_url(n) } || matches.first
+      end
 
-# step-4
+      def pin_like?(node)
+
+# step-5
