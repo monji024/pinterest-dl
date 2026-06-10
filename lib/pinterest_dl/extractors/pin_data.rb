@@ -115,5 +115,24 @@ module PinterestDL
       end
 
       def pin_like?(node)
+        !best_image_url(node).nil?
+      end
 
-# step-5
+      def has_media?(node)
+        node['images'].is_a?(Hash) || node['videos'].is_a?(Hash) || node['story_pin_data'].is_a?(Hash)
+      end
+
+      def first_video_url(pin)
+        return nil unless pin.is_a?(Hash)
+
+        video_list = pin.dig('videos', 'video_list')
+        video_list = deep_find(pin['story_pin_data'], 'video_list') unless video_list.is_a?(Hash)
+        best_video(video_list)
+      end
+
+      def best_video(video_list)
+        return nil unless video_list.is_a?(Hash)
+
+        formats = video_list.values.select { |v| v.is_a?(Hash) && v['url'] }
+
+# step-6
