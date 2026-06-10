@@ -77,4 +77,23 @@ module PinterestDL
       def best_image_url(pin)
         return nil unless pin.is_a?(Hash)
 
-# step-3
+        orig = pin.dig('images', 'orig', 'url')
+        return orig if orig
+
+        images = pin['images']
+        return nil unless images.is_a?(Hash)
+
+        images.values.filter_map { |v| v['url'] if v.is_a?(Hash) }.last
+      end
+
+      def parse_embedded_json(html)
+        html.to_s.scan(SCRIPT_PATTERN).each do |(raw)|
+          parsed = safe_parse(raw)
+          return parsed if parsed
+        end
+        nil
+      end
+
+      def find_pin_node(data, pin_id = nil)
+
+# step-4
