@@ -154,5 +154,23 @@ module PinterestDL
         stack = [node]
         until stack.empty?
           current = stack.pop
+          case current
+          when Hash
+            return current[key] if current[key].is_a?(Hash)
 
-# step-7
+            stack.concat(current.values)
+          when Array
+            stack.concat(current)
+          end
+        end
+        nil
+      end
+
+      def safe_parse(raw)
+        JSON.parse(raw)
+      rescue JSON::ParserError
+        nil
+      end
+    end
+  end
+end
