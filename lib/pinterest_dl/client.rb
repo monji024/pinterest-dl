@@ -14,5 +14,21 @@ module PinterestDL
     def initialize(config: PinterestDL.config)
       @config = config
       @cache = {}
+      @cookies = Hash.new { |hash, key| hash[key] = {} }
+      @last_request_at = nil
+      @last_url = nil
+      @mutex = Mutex.new
+    end
 
-# step-0
+    def get(url, headers: {}, use_cache: true)
+      cache_key = [url, headers].hash
+      if use_cache
+        cached = @mutex.synchronize { @cache[cache_key] }
+        if cached
+          body, @last_url = cached
+          return body
+        end
+      end
+
+
+# step-1
