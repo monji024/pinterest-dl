@@ -47,5 +47,21 @@ module PinterestDL
 
     def cookie(name, url = @last_url)
       target = url.to_s.empty? ? 'https://www.pinterest.com' : url.to_s
+      key = site_key(URI(target))
+      @mutex.synchronize { @cookies[key][name] }
+    rescue URI::InvalidURIError
+      nil
+    end
 
-# step-2
+    def clear_cache
+      @mutex.synchronize { @cache.clear }
+    end
+
+    private
+
+    def store_cache(key, value)
+      @mutex.synchronize do
+        max = @config.respond_to?(:max_cache_entries) ? @config.max_cache_entries.to_i : 256
+        @cache.shift if max.positive? && @cache.size >= max
+
+# step-3
