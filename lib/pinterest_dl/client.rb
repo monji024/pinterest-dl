@@ -30,5 +30,22 @@ module PinterestDL
         end
       end
 
+      body = fetch(url, headers: headers).body
+      store_cache(cache_key, [body, @last_url]) if use_cache
+      body
+    end
 
-# step-1
+    def raw_get(url, headers: {})
+      fetch(url, headers: headers)
+    end
+
+    def stream_get(url, headers: {}, &block)
+      raise ArgumentError, 'stream_get requires a block' unless block_given?
+
+      fetch(url, headers: headers, &block)
+    end
+
+    def cookie(name, url = @last_url)
+      target = url.to_s.empty? ? 'https://www.pinterest.com' : url.to_s
+
+# step-2
