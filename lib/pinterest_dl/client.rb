@@ -129,5 +129,21 @@ module PinterestDL
           response.read_body(&stream_block)
         end
         return response
+      end
+    end
 
-# step-7
+    def retryable_response?(response)
+      RETRYABLE_HTTP_CODES.include?(response.code.to_s)
+    end
+
+    def retry_delay_for(response, attempts)
+      header = response['Retry-After'].to_s.strip
+      if header.match?(/\A\d+(\.\d+)?\z/)
+        header.to_f
+      else
+        @config.retry_wait * attempts
+      end
+    end
+
+
+# step-8
