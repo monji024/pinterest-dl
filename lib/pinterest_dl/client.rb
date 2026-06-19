@@ -80,5 +80,21 @@ module PinterestDL
         location = response['location']
         raise PinterestDL::NotFoundError, "Redirected without a location header (#{url})" unless location
 
+        url = URI.join(url, location).to_s
+      end
 
-# step-4
+      raise PinterestDL::NetworkError, "Too many redirects for #{url}"
+    end
+
+    def request_with_retries(url, headers: {}, &stream_block)
+      attempts = 0
+      begin
+        throttle!
+        uri = URI(url)
+        http = build_http(uri)
+        req = Net::HTTP::Get.new(uri, default_headers(uri).merge(headers))
+        response = perform_request(http, req, &stream_block)
+
+        if retryable_response?(response) && attempts < @config.max_retries
+
+# step-5
