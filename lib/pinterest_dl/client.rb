@@ -145,5 +145,22 @@ module PinterestDL
       end
     end
 
+    def check_response(response, url)
+      case response
+      when Net::HTTPSuccess
+        response
+      when Net::HTTPTooManyRequests
+        raise PinterestDL::RateLimitError.new(
+          "Rate limited while requesting #{url}",
+          retry_after: response['Retry-After']
+        )
+      when Net::HTTPUnauthorized
+        raise PinterestDL::AuthenticationError, "Authentication required for #{url}"
+      when Net::HTTPNotFound
+        raise PinterestDL::NotFoundError, "Nothing found at #{url}"
+      when Net::HTTPForbidden
+        raise PinterestDL::RateLimitError, "Request to #{url} was blocked (HTTP 403)"
+      else
+        raise PinterestDL::NetworkError, "Unexpected response #{response.code} from #{url}"
 
-# step-8
+# step-9
