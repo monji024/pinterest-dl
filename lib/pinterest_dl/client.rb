@@ -63,5 +63,22 @@ module PinterestDL
       @mutex.synchronize do
         max = @config.respond_to?(:max_cache_entries) ? @config.max_cache_entries.to_i : 256
         @cache.shift if max.positive? && @cache.size >= max
+        @cache[key] = value if max.positive?
+      end
+    end
 
-# step-3
+    def fetch(url, headers: {}, &stream_block)
+      (MAX_REDIRECTS + 1).times do
+        response = request_with_retries(url, headers: headers, &stream_block)
+        save_cookies(response, url)
+        unless response.is_a?(Net::HTTPRedirection)
+          check_response(response, url)
+          @last_url = url
+          return response
+        end
+
+        location = response['location']
+        raise PinterestDL::NotFoundError, "Redirected without a location header (#{url})" unless location
+
+
+# step-4
