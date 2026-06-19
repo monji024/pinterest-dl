@@ -96,5 +96,21 @@ module PinterestDL
         response = perform_request(http, req, &stream_block)
 
         if retryable_response?(response) && attempts < @config.max_retries
+          attempts += 1
+          wait = retry_delay_for(response, attempts)
+          @config.logger.warn("HTTP #{response.code} from #{url}, retrying in #{wait}s (#{attempts}/#{@config.max_retries})")
+          sleep(wait) if wait.positive?
+          raise RetryableResponseSignal
+        end
 
-# step-5
+        response
+      rescue RetryableResponseSignal
+        retry
+      rescue Timeout::Error, Errno::ECONNRESET, Errno::ECONNREFUSED, Errno::ETIMEDOUT,
+             Errno::EHOSTUNREACH, SocketError, OpenSSL::SSL::SSLError, EOFError => e
+        attempts += 1
+        if attempts <= @config.max_retries
+          @config.logger.warn("request to #{url} failed (#{e.class}), retrying (#{attempts}/#{@config.max_retries})")
+          sleep(@config.retry_wait * attempts)
+
+# step-6
