@@ -112,5 +112,22 @@ module PinterestDL
         if attempts <= @config.max_retries
           @config.logger.warn("request to #{url} failed (#{e.class}), retrying (#{attempts}/#{@config.max_retries})")
           sleep(@config.retry_wait * attempts)
+          retry
+        end
+        raise PinterestDL::NetworkError.new("Failed to reach #{url}: #{e.message}", cause_error: e)
+      end
+    end
 
-# step-6
+    class RetryableResponseSignal < StandardError; end
+    private_constant :RetryableResponseSignal
+
+    def perform_request(http, req, &stream_block)
+      return http.request(req) unless stream_block
+
+      http.request(req) do |response|
+        if response.is_a?(Net::HTTPSuccess)
+          response.read_body(&stream_block)
+        end
+        return response
+
+# step-7
