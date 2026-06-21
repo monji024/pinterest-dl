@@ -211,5 +211,21 @@ module PinterestDL
       @mutex.synchronize do
         jar = @cookies[key]
         fields.each do |line|
+          name, value = line.split(';').first.to_s.split('=', 2)
+          next if name.nil? || value.nil?
 
-# step-12
+          value.strip.empty? ? jar.delete(name.strip) : jar[name.strip] = value.strip
+        end
+      end
+    end
+
+    def site_key(uri)
+      host = uri.host.to_s.downcase
+      return 'pinterest.com' if host.include?('pinterest.')
+
+      host.split('.').last(2).join('.')
+    end
+
+    def throttle!
+
+# step-13
