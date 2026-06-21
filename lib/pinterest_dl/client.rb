@@ -178,5 +178,21 @@ module PinterestDL
       proxy_url = @config.respond_to?(:proxy) ? @config.proxy : nil
       return Net::HTTP.new(uri.host, uri.port) if proxy_url.nil? || proxy_url.to_s.strip.empty?
 
+      p_uri = URI(proxy_url.to_s)
+      Net::HTTP.new(uri.host, uri.port, p_uri.host, p_uri.port, p_uri.user, p_uri.password)
+    rescue URI::InvalidURIError
+      Net::HTTP.new(uri.host, uri.port)
+    end
 
-# step-10
+    def default_headers(uri)
+      headers = {
+        'User-Agent' => @config.user_agent,
+        'Accept-Language' => 'en-US,en;q=0.9'
+      }
+      cookie_line = cookie_header(uri)
+      headers['Cookie'] = cookie_line unless cookie_line.empty?
+      headers
+    end
+
+
+# step-11
