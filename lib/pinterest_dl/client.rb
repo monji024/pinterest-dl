@@ -194,5 +194,22 @@ module PinterestDL
       headers
     end
 
+    def cookie_header(uri)
+      parts = []
+      parts << @config.cookies.to_s if @config.authenticated?
+      key = site_key(uri)
+      jar_pairs = @mutex.synchronize { @cookies[key].map { |name, value| "#{name}=#{value}" } }
+      parts.concat(jar_pairs)
+      parts.join('; ')
+    end
 
-# step-11
+    def save_cookies(response, url)
+      fields = response.get_fields('set-cookie')
+      return if fields.nil? || fields.empty?
+
+      key = site_key(URI(url))
+      @mutex.synchronize do
+        jar = @cookies[key]
+        fields.each do |line|
+
+# step-12
