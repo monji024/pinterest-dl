@@ -162,5 +162,21 @@ module PinterestDL
         raise PinterestDL::RateLimitError, "Request to #{url} was blocked (HTTP 403)"
       else
         raise PinterestDL::NetworkError, "Unexpected response #{response.code} from #{url}"
+      end
+    end
 
-# step-9
+    def build_http(uri)
+      http = build_proxy_http(uri)
+      http.use_ssl = (uri.scheme == 'https')
+      http.open_timeout = @config.open_timeout
+      http.read_timeout = @config.read_timeout
+      http.write_timeout = @config.write_timeout if http.respond_to?(:write_timeout=) && @config.respond_to?(:write_timeout)
+      http
+    end
+
+    def build_proxy_http(uri)
+      proxy_url = @config.respond_to?(:proxy) ? @config.proxy : nil
+      return Net::HTTP.new(uri.host, uri.port) if proxy_url.nil? || proxy_url.to_s.strip.empty?
+
+
+# step-10
