@@ -227,5 +227,20 @@ module PinterestDL
     end
 
     def throttle!
+      return if @config.rate_limit_interval <= 0
 
-# step-13
+      @mutex.synchronize do
+        if @last_request_at
+          elapsed = monotonic_now - @last_request_at
+          wait = @config.rate_limit_interval - elapsed
+          sleep(wait) if wait.positive?
+        end
+        @last_request_at = monotonic_now
+      end
+    end
+
+    def monotonic_now
+      Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    end
+  end
+end
