@@ -33,5 +33,22 @@ module PinterestDL
       bookmarks = nil
       pages_fetched = 0
 
+      loop do
+        page = fetch_page(session, query, bookmarks: bookmarks)
+        PinterestDL::MediaType.filter(page[:pins], type).each do |pin|
+          next if seen[pin[:id]]
 
-# step-1
+          seen[pin[:id]] = true
+          results << pin
+        end
+        bookmarks = page[:bookmarks]
+        pages_fetched += 1
+
+        break if results.size >= limit || stop_pagination?(bookmarks, pages_fetched, pages, page[:pins])
+      end
+
+      results
+    end
+
+
+# step-2
