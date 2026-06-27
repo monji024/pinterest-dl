@@ -103,5 +103,22 @@ module PinterestDL
       headers = {
         'Accept' => 'application/json, text/javascript, */*, q=0.01',
         'X-Requested-With' => 'XMLHttpRequest',
+        'X-Pinterest-AppState' => 'active',
+        'X-Pinterest-Source-Url' => session[:source_path],
+        'X-Pinterest-PWS-Handler' => 'www/search/[scope].js',
+        'X-CSRFToken' => session[:csrf],
+        'Referer' => session[:home_uri].to_s
+      }
+      headers['Cookie'] = cookie_header unless cookie_header.empty?
+      headers
+    end
 
-# step-5
+    def parse_search_response(json)
+      data_node = json.dig('resource_response', 'data')
+      raw_results =
+        case data_node
+        when Array then data_node
+        when Hash then data_node['results'] || []
+        else []
+
+# step-6
