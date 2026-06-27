@@ -50,5 +50,23 @@ module PinterestDL
       results
     end
 
+    def stop_pagination?(bookmarks, pages_fetched, max_pages, pins)
+      bookmarks.nil? || bookmarks.empty? || bookmarks == ['-end-'] || pages_fetched >= max_pages || pins.empty?
+    end
 
-# step-2
+    def fetch_page(session, query, bookmarks: nil)
+      body = @client.get(
+        build_search_url(session[:source_path], query, bookmarks),
+        use_cache: false,
+        headers: search_headers(session)
+      )
+
+      json = safe_parse(body)
+      raise PinterestDL::NotFoundError, "No search results for \"#{query}\"" unless json
+
+      parse_search_response(json)
+    end
+
+    def establish_session(query)
+
+# step-3
