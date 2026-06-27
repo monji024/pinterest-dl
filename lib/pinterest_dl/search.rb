@@ -120,5 +120,21 @@ module PinterestDL
         when Array then data_node
         when Hash then data_node['results'] || []
         else []
+        end
+      next_bookmarks = json.dig('resource_response', 'bookmark') ||
+                       json.dig('resource', 'options', 'bookmarks')
 
-# step-6
+      { pins: raw_results.filter_map { |r| build_pin(r) }, bookmarks: Array(next_bookmarks) }
+    end
+
+    def build_pin(raw)
+      PinterestDL::Extractors::PinData.build_pin_hash(raw, quality: @config.quality)
+    end
+
+    def safe_parse(body)
+      JSON.parse(body)
+    rescue JSON::ParserError, TypeError
+      nil
+    end
+  end
+end
