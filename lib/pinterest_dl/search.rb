@@ -85,5 +85,23 @@ module PinterestDL
 
     def csrf_token(cookies)
       token_cookie = cookies.find { |c| c.start_with?('csrftoken=') }
+      token_cookie ? token_cookie.split('=', 2).last : 'undefined'
+    end
 
-# step-4
+    def build_search_url(source_path, query, bookmarks)
+      options = { query: query, scope: 'pins', page_size: 25 }
+      options[:bookmarks] = bookmarks if bookmarks && !bookmarks.empty?
+      data = { options: options, context: {} }.to_json
+
+      res_uri = URI(S_URL)
+      res_uri.query = URI.encode_www_form('source_url' => source_path, 'data' => data)
+      res_uri.to_s
+    end
+
+    def search_headers(session)
+      cookie_header = [@config.cookies, session[:cookies].join('; ')].compact.reject(&:empty?).join('; ')
+      headers = {
+        'Accept' => 'application/json, text/javascript, */*, q=0.01',
+        'X-Requested-With' => 'XMLHttpRequest',
+
+# step-5
