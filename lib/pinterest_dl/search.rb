@@ -68,5 +68,22 @@ module PinterestDL
     end
 
     def establish_session(query)
+      source_path = "/search/pins/?q=#{URI.encode_www_form_component(query)}"
+      home_uri = URI("https://www.pinterest.com#{source_path}")
+      home_response = @client.raw_get(home_uri.to_s)
+      cookies = (home_response.get_fields('set-cookie') || []).map { |c| c.split(';').first }
+      csrf = @client.cookie('csrftoken', home_uri.to_s) || csrf_token(cookies)
 
-# step-3
+      {
+        source_path: source_path,
+        home_uri: home_uri,
+        cookies: cookies,
+        csrf: csrf,
+        html: home_response.body
+      }
+    end
+
+    def csrf_token(cookies)
+      token_cookie = cookies.find { |c| c.start_with?('csrftoken=') }
+
+# step-4
