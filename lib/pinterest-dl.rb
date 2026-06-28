@@ -13,10 +13,9 @@ require 'openssl'
 
 module PinterestDL
   ver = '1.0.0'.freeze
-  craetor  = 'Monji'.freeze
   github  = 'https://github.com/monji024/pinterest-dl'.freeze
 
-  puts "pinterest-dl v#{ver} by #{craetor} (#{github})\n\n"
+  puts "pinterest-dl v#{ver} (#{github})\n\n"
 
   USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'.freeze
 
