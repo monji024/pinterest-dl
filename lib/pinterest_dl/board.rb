@@ -18,5 +18,25 @@ module PinterestDL
       html = start_session(username, slug)
       board_id = board_id_from_page(html, slug) || find_board_id(username, slug)
       resource, options = feed_request(board_id, section)
+      results = collect_pins(resource, options, limit: limit, pages: pages, type: type)
+      if results.empty?
+        fallback = PinterestDL::Extractors::PinData.extract_pins(html, quality: @config.quality)
+        results = PinterestDL::MediaType.filter(fallback, type)
+      end
+      results.first(limit)
+    end
 
-# step-0
+    private
+
+    def collect_pins(resource, options, limit:, pages:, type:)
+      results = []
+      seen = {}
+      bookmarks = nil
+      pages_fetched = 0
+
+      loop do
+        page = fetch_page(resource, options, bookmarks)
+        PinterestDL::MediaType.filter(page[:pins], type).each do |pin|
+          next if seen[pin[:id]]
+
+# step-1
