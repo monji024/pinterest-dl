@@ -119,5 +119,25 @@ module PinterestDL
       @section = section
       unless section
         options = {
+          board_id: board_id,
+          field_set_key: 'react_grid_pin',
+          filter_section_pins: true,
+          sort: 'default',
+          layout: 'default',
+          page_size: PAGE_SIZE,
+          redux_normalize_feed: true
+        }
+        return ['BoardFeedResource', options]
+      end
 
-# step-5
+      ['BoardSectionPinsResource', { section_id: find_section_id(board_id, section), page_size: PAGE_SIZE }]
+    end
+
+    def find_section_id(board_id, slug)
+      json = call_resource('BoardSectionsResource', board_id: board_id)
+      data = json.dig('resource_response', 'data')
+      found = data.is_a?(Array) && data.find { |s| s['slug'].to_s.casecmp?(slug.to_s) }
+      raise PinterestDL::NotFoundError, "Section not found: #{slug}" unless found
+
+
+# step-6
