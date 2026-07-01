@@ -78,5 +78,26 @@ module PinterestDL
       response = @client.raw_get(target)
       @page_url = @client.last_url || target
       @host = URI(@page_url).host || 'www.pinterest.com'
+      @source_path = URI(@page_url).path || "/#{username}/#{slug}/"
+      response.body
+    end
 
-# step-3
+    def board_id_from_page(html, slug)
+      html.to_s.scan(PinterestDL::Extractors::PinData::SCRIPT_PATTERN).each do |(raw)|
+        data = PinterestDL::Extractors::PinData.safe_parse(raw)
+        stack = [data]
+        until stack.empty?
+          node = stack.pop
+          case node
+          when Hash
+            return node['id'].to_s if board_node?(node, slug)
+
+            stack.concat(node.values)
+          when Array
+            stack.concat(node)
+          end
+        end
+      end
+      html.to_s[/"board_id"\s*:\s*"(\d+)"/, 1]
+
+# step-4
