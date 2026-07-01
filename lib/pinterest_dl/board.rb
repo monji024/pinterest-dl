@@ -58,5 +58,25 @@ module PinterestDL
     def parse_url(board_url)
       url = board_url.to_s
       if url.include?('pin.it/')
+        @client.raw_get(url)
+        url = @client.last_url
+      end
 
-# step-2
+      uri = URI(url)
+      parts = uri.path.to_s.split('/').reject(&:empty?)
+      valid = uri.host.to_s.include?('pinterest') && [2, 3].include?(parts.size) &&
+              !RESERVED_PATHS.include?(parts.first.to_s.downcase)
+      raise PinterestDL::InvalidURLError, "Not a Pinterest board URL: #{board_url}" unless valid
+
+      parts
+    rescue URI::InvalidURIError
+      raise PinterestDL::InvalidURLError, "Not a Pinterest board URL: #{board_url}"
+    end
+
+    def start_session(username, slug)
+      target = "https://www.pinterest.com/#{username}/#{slug}/"
+      response = @client.raw_get(target)
+      @page_url = @client.last_url || target
+      @host = URI(@page_url).host || 'www.pinterest.com'
+
+# step-3
