@@ -39,4 +39,24 @@ module PinterestDL
         PinterestDL::MediaType.filter(page[:pins], type).each do |pin|
           next if seen[pin[:id]]
 
-# step-1
+          seen[pin[:id]] = true
+          results << pin
+        end
+        bookmarks = page[:bookmarks]
+        pages_fetched += 1
+
+        break if results.size >= limit || stop_pagination?(bookmarks, pages_fetched, pages, page[:pins])
+      end
+
+      results
+    end
+
+    def stop_pagination?(bookmarks, pages_fetched, max_pages, pins)
+      bookmarks.empty? || bookmarks == ['-end-'] || pages_fetched >= max_pages || pins.empty?
+    end
+
+    def parse_url(board_url)
+      url = board_url.to_s
+      if url.include?('pin.it/')
+
+# step-2
