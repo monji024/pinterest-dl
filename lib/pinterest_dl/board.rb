@@ -99,5 +99,25 @@ module PinterestDL
         end
       end
       html.to_s[/"board_id"\s*:\s*"(\d+)"/, 1]
+    end
 
-# step-4
+    def board_node?(node, slug)
+      node['type'] == 'board' && node['id'].to_s.match?(/\A\d+\z/) &&
+        node['url'].to_s.downcase.include?("/#{slug.to_s.downcase}/")
+    end
+
+    def find_board_id(username, slug)
+      json = call_resource('BoardResource', username: username, slug: slug, field_set_key: 'detailed')
+      data = json.dig('resource_response', 'data')
+      id = data.is_a?(Hash) && data['id']
+      raise PinterestDL::NotFoundError, "Board not found: #{username}/#{slug} (private boards need --cookies)" unless id
+
+      id.to_s
+    end
+
+    def feed_request(board_id, section)
+      @section = section
+      unless section
+        options = {
+
+# step-5
