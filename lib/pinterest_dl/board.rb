@@ -139,5 +139,25 @@ module PinterestDL
       found = data.is_a?(Array) && data.find { |s| s['slug'].to_s.casecmp?(slug.to_s) }
       raise PinterestDL::NotFoundError, "Section not found: #{slug}" unless found
 
+      found['id']
+    end
 
-# step-6
+    def fetch_page(resource, options, bookmarks)
+      options = options.merge(bookmarks: bookmarks) if bookmarks && !bookmarks.empty?
+      json = call_resource(resource, options)
+
+      data = json.dig('resource_response', 'data')
+      pins = data.is_a?(Array) ? data.filter_map { |r| build_pin(r) } : []
+      { pins: pins, bookmarks: Array(json.dig('resource_response', 'bookmark')) }
+    end
+
+    def call_resource(name, options)
+      data = { options: options, context: {} }.to_json
+      uri = URI("https://#{@host}/resource/#{name}/get/")
+      uri.query = URI.encode_www_form('source_url' => @source_path, 'data' => data)
+
+      body = @client.get(uri.to_s, use_cache: false, headers: api_headers)
+      JSON.parse(body)
+    rescue JSON::ParserError, TypeError
+
+# step-7
