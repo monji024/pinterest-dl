@@ -159,5 +159,24 @@ module PinterestDL
       body = @client.get(uri.to_s, use_cache: false, headers: api_headers)
       JSON.parse(body)
     rescue JSON::ParserError, TypeError
+      raise PinterestDL::NotFoundError, "Unexpected response from Pinterest (#{name})"
+    end
 
-# step-7
+    def api_headers
+      handler = @section ? 'www/[username]/[slug]/[section_slug].js' : 'www/[username]/[slug].js'
+      {
+        'Accept' => 'application/json, text/javascript, */*, q=0.01',
+        'X-Requested-With' => 'XMLHttpRequest',
+        'X-Pinterest-AppState' => 'active',
+        'X-Pinterest-Source-Url' => @source_path,
+        'X-Pinterest-PWS-Handler' => handler,
+        'X-CSRFToken' => @client.cookie('csrftoken', @page_url) || 'undefined',
+        'Referer' => @page_url
+      }
+    end
+
+    def build_pin(raw)
+      PinterestDL::Extractors::PinData.build_pin_hash(raw, quality: @config.quality)
+    end
+  end
+end
