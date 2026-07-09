@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
 module PinterestDL
-  VERSION = '2.0.3'
+  VERSION = '2.1.5'
 end
