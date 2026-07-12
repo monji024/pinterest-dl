@@ -8,5 +8,13 @@ module PinterestDL
       @out = out
     end
 
-
-# step-0
+    def update(done)
+      ratio = [[done.to_f / @total, 0.0].max, 1.0].min
+      filled = (@width * ratio).round
+      bar = ('#' * filled) + ('-' * (@width - filled))
+      @out.print "\r[#{bar}] #{done}/#{@total} (#{((done.to_f / @total) * 100).round}%)"
+      @out.print "\n" if done >= @total
+      @out.flush
+    end
+  end
+end
