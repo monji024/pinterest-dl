@@ -144,5 +144,29 @@ module PinterestDL
                 succeeded << path
               when :failed
                 @config.logger.warn("failed to download #{url}: #{err.message}")
+                failed << { url: url, error: err }
+              end
+              done_count += 1
+              progress&.call(done_count, total, url)
+            end
+          end
+        end
+      end
 
-# step-5
+      threads.each(&:join)
+      { succeeded: succeeded, failed: failed, skipped: skipped }
+    end
+
+    def resolve_target(item, index, dir, filename)
+      if item.is_a?(Hash)
+        url = item[:video_url] || item[:image_url] || item[:url]
+        name = filename ? filename.call(url, index) : pin_filename(item, url, index)
+      else
+        url = item
+        name = filename ? filename.call(url, index) : default_filename(url, index)
+      end
+      [url, File.join(dir, sanitize_filename(name))]
+    end
+
+
+# step-6
