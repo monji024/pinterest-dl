@@ -168,5 +168,28 @@ module PinterestDL
       [url, File.join(dir, sanitize_filename(name))]
     end
 
+    def pin_filename(pin, url, index)
+      ext = extract_ext(url)
+      id = pin[:id].to_s.strip
+      return default_filename(url, index) if id.empty?
 
-# step-6
+      format('%<index>04d_%<id>s%<ext>s', index: index + 1, id: id, ext: ext)
+    end
+
+    def default_filename(url, index)
+      format('%<index>04d%<ext>s', index: index + 1, ext: extract_ext(url))
+    end
+
+    def extract_ext(url)
+      ext = File.extname(URI(url.to_s).path.to_s)[/\A\.[A-Za-z0-9]{2,5}\z/]
+      ext || '.jpg'
+    rescue URI::InvalidURIError
+      '.jpg'
+    end
+
+    def sanitize_filename(name)
+      clean = File.basename(name.to_s.strip).gsub(/[\x00\/\\:*?"<>|]/, '_')
+      clean.empty? ? 'download.jpg' : clean
+    end
+  end
+end
