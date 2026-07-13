@@ -46,5 +46,30 @@ module PinterestDL
       return { succeeded: [], failed: [], skipped: [] } if total.zero?
 
       workers = resolve_concurrency(concurrency, total)
+      return sequential_batch(urls, dir: dir, filename: filename, overwrite: overwrite, &progress) if workers <= 1
 
-# step-1
+      concurrent_batch(urls, dir: dir, filename: filename, workers: workers, overwrite: overwrite, &progress)
+    end
+
+    private
+
+    def write_to_part(url, part_path)
+      if @client.respond_to?(:stream_get)
+        File.open(part_path, 'wb') do |file|
+          @client.stream_get(url) { |chunk| file.write(chunk) }
+        end
+      else
+        response = @client.raw_get(url)
+        File.binwrite(part_path, response.body)
+      end
+    end
+
+    def cleanup_part(part_path)
+      FileUtils.rm_f(part_path) if part_path && File.exist?(part_path)
+    end
+
+    def resolve_concurrency(concurrency, total)
+      return 1 unless @client.is_a?(PinterestDL::Client)
+
+
+# step-2
