@@ -95,5 +95,29 @@ module PinterestDL
         rescue PinterestDL::Error => e
           @config.logger.warn("failed to download #{url}: #{e.message}")
           failed << { url: url, error: e }
+        end
+        progress&.call(index + 1, total, url)
+      end
 
-# step-3
+      { succeeded: succeeded, failed: failed, skipped: skipped }
+    end
+
+    def concurrent_batch(urls, dir:, filename:, workers:, overwrite:, &progress)
+      queue = Queue.new
+      urls.each_with_index { |item, index| queue << [item, index] }
+      workers.times { queue << nil }
+
+      succeeded = []
+      failed = []
+      skipped = []
+      done_count = 0
+      total = urls.size
+      mutex = Mutex.new
+      should_overwrite = overwrite.nil? ? (@config.respond_to?(:overwrite) ? @config.overwrite : true) : overwrite
+
+      threads = Array.new(workers) do
+        Thread.new do
+          while (work = queue.pop)
+            item, index = work
+
+# step-4
