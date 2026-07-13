@@ -71,5 +71,29 @@ module PinterestDL
     def resolve_concurrency(concurrency, total)
       return 1 unless @client.is_a?(PinterestDL::Client)
 
+      configured = concurrency || (@config.respond_to?(:concurrency) ? @config.concurrency : 1)
+      [[configured.to_i, 1].max, total].min
+    end
 
-# step-2
+    def sequential_batch(urls, dir:, filename:, overwrite:, &progress)
+      succeeded = []
+      failed = []
+      skipped = []
+      total = urls.size
+      should_overwrite = overwrite.nil? ? (@config.respond_to?(:overwrite) ? @config.overwrite : true) : overwrite
+
+      urls.each_with_index do |item, index|
+        url, path = resolve_target(item, index, dir, filename)
+        begin
+          if !should_overwrite && File.exist?(path) && File.size(path).positive?
+            skipped << path
+            succeeded << path
+          else
+            download(url, path: path, overwrite: true)
+            succeeded << path
+          end
+        rescue PinterestDL::Error => e
+          @config.logger.warn("failed to download #{url}: #{e.message}")
+          failed << { url: url, error: e }
+
+# step-3
