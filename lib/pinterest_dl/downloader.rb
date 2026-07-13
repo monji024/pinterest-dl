@@ -119,5 +119,30 @@ module PinterestDL
         Thread.new do
           while (work = queue.pop)
             item, index = work
+            url, path = resolve_target(item, index, dir, filename)
+            outcome = nil
+            err = nil
 
-# step-4
+            begin
+              if !should_overwrite && File.exist?(path) && File.size(path).positive?
+                outcome = :skipped
+              else
+                download(url, path: path, overwrite: true)
+                outcome = :succeeded
+              end
+            rescue PinterestDL::Error => e
+              err = e
+              outcome = :failed
+            end
+
+            mutex.synchronize do
+              case outcome
+              when :skipped
+                skipped << path
+                succeeded << path
+              when :succeeded
+                succeeded << path
+              when :failed
+                @config.logger.warn("failed to download #{url}: #{err.message}")
+
+# step-5
