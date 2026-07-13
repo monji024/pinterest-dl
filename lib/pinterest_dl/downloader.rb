@@ -23,4 +23,28 @@ module PinterestDL
       raise ArgumentError, 'url must not be nil/empty' if url.to_s.strip.empty?
       raise ArgumentError, 'path must not be nil/empty' if path.to_s.strip.empty?
 
-# step-0
+      should_overwrite = overwrite.nil? ? (@config.respond_to?(:overwrite) ? @config.overwrite : true) : overwrite
+      return path if !should_overwrite && File.exist?(path) && File.size(path).positive?
+
+      FileUtils.mkdir_p(File.dirname(path))
+      part_path = "#{path}.part.#{Process.pid}.#{Thread.current.object_id}"
+
+      write_to_part(url, part_path)
+      File.rename(part_path, path)
+      path
+    rescue PinterestDL::Error
+      cleanup_part(part_path)
+      raise
+    rescue StandardError => e
+      cleanup_part(part_path)
+      raise PinterestDL::DownloadError, "Could not download #{url} to #{path}: #{e.message}"
+    end
+
+    def download_batch(urls, dir:, filename: nil, concurrency: nil, overwrite: nil, &progress)
+      FileUtils.mkdir_p(dir)
+      total = urls.size
+      return { succeeded: [], failed: [], skipped: [] } if total.zero?
+
+      workers = resolve_concurrency(concurrency, total)
+
+# step-1
