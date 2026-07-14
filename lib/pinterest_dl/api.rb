@@ -41,4 +41,25 @@ module PinterestDL
       raise NotFoundError, "No video found at #{pin_url}#{hint}"
     end
 
-# step-1
+    def get_media(pin_url, quality: config.quality, client: Client.new(config: config))
+      html, pin_id = load_pin(pin_url, client)
+      image = extract_pin_image(html, pin_id, quality: quality)
+      video = extract_pin_video(html, pin_id)
+      if (!image || !video) && pin_id
+        api_pin = pin_from_api(pin_id, client)
+        image ||= api_pin && api_pin[:image_url] && Extractors::Image.apply_quality(api_pin[:image_url], quality)
+        video ||= api_pin && api_pin[:video_url]
+      end
+      { image_url: image, video_url: video }
+    end
+
+    def download(url, path:, overwrite: nil)
+      Downloader.new(config: config).download(url, path: path, overwrite: overwrite)
+    end
+
+    def download_batch(urls, dir:, filename: nil, concurrency: nil, overwrite: nil, &progress)
+      Downloader.new(config: config).download_batch(
+        urls,
+        dir: dir,
+
+# step-2
