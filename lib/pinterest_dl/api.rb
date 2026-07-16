@@ -61,5 +61,27 @@ module PinterestDL
       Downloader.new(config: config).download_batch(
         urls,
         dir: dir,
+        filename: filename,
+        concurrency: concurrency,
+        overwrite: overwrite,
+        &progress
+      )
+    end
 
-# step-2
+    def search(query, limit: 25, pages: nil, type: :all, client: Client.new(config: config))
+      type = MediaType.parse(type)
+      needed_pages = (limit.to_f / 25).ceil + 2
+      effective_pages = pages || [needed_pages, 5].max
+      effective_pages = [effective_pages, 15].max unless type == :all
+      Search.new(client: client, config: config).call(query, limit: limit, pages: effective_pages, type: type)
+    end
+
+    def search_json(query, limit: 25)
+      JSON.pretty_generate(search(query, limit: limit))
+    end
+
+    def search_images(query, limit: 25)
+      search(query, limit: limit, type: :image).filter_map { |p| p[:image_url] }
+    end
+
+# step-3
