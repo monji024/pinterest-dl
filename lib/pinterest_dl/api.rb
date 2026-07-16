@@ -84,4 +84,25 @@ module PinterestDL
       search(query, limit: limit, type: :image).filter_map { |p| p[:image_url] }
     end
 
-# step-3
+    def search_videos(query, limit: 25)
+      search(query, limit: limit, type: :video).filter_map { |p| p[:video_url] }
+    end
+
+    def board(board_url, limit: 50, pages: nil, type: :all, client: Client.new(config: config))
+      type = MediaType.parse(type)
+      needed_pages = (limit.to_f / Board::PAGE_SIZE).ceil + 2
+      effective_pages = pages || [needed_pages, 10].max
+      effective_pages = [effective_pages, 20].max unless type == :all
+      Board.new(client: client, config: config).call(board_url, limit: limit, pages: effective_pages, type: type)
+    end
+
+    private
+
+    def load_pin(pin_url, client, fresh: false)
+      validate_pin_url!(pin_url)
+      html = client.get(normalize_pin_url(pin_url), use_cache: !fresh)
+      id = pin_id_from(client.last_url) || pin_id_from(pin_url) || html.to_s[%r{pinterest\.[a-z.]+/pin/(\d+)}, 1]
+      [html, id]
+    end
+
+# step-4
