@@ -125,5 +125,26 @@ module PinterestDL
 
       {
         image_url: Extractors::PinData.best_image_url(pin),
+        video_url: Extractors::PinData.first_video_url(pin)
+      }
+    rescue PinterestDL::Error, JSON::ParserError => e
+      logger.debug("PinResource failed for pin #{pin_id}: #{e.message}")
+      nil
+    end
 
-# step-5
+    def api_image_url(pin_id, client, quality)
+      url = pin_from_api(pin_id, client)&.dig(:image_url)
+      url && Extractors::Image.apply_quality(url, quality)
+    end
+
+    def normalize_pin_url(pin_url)
+      id = pin_id_from(pin_url)
+      id ? "https://www.pinterest.com/pin/#{id}/" : pin_url
+    end
+
+    def pin_id_from(url)
+      match = url.to_s.match(%r{/pin/(?:[^/?#]*--)?(\d+)})
+      match && match[1]
+    end
+
+# step-6
