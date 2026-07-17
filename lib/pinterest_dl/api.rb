@@ -105,4 +105,25 @@ module PinterestDL
       [html, id]
     end
 
-# step-4
+    def pin_from_api(pin_id, client)
+      return nil unless pin_id
+
+      data = { options: { id: pin_id, field_set_key: 'detailed' }, context: {} }.to_json
+      uri = URI('https://www.pinterest.com/resource/PinResource/get/')
+      uri.query = URI.encode_www_form('source_url' => "/pin/#{pin_id}/", 'data' => data)
+      headers = {
+        'Accept' => 'application/json, text/javascript, */*, q=0.01',
+        'X-Requested-With' => 'XMLHttpRequest',
+        'X-Pinterest-AppState' => 'active',
+        'X-Pinterest-PWS-Handler' => 'www/pin/[id].js',
+        'X-Pinterest-Source-Url' => "/pin/#{pin_id}/",
+        'X-CSRFToken' => client.cookie('csrftoken') || 'undefined',
+        'Referer' => "https://www.pinterest.com/pin/#{pin_id}/"
+      }
+      pin = JSON.parse(client.get(uri.to_s, headers: headers, use_cache: false)).dig('resource_response', 'data')
+      return nil unless pin.is_a?(Hash)
+
+      {
+        image_url: Extractors::PinData.best_image_url(pin),
+
+# step-5
