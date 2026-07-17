@@ -147,4 +147,24 @@ module PinterestDL
       match && match[1]
     end
 
-# step-6
+    def extract_pin_image(html, pin_id, quality:)
+      pin = Extractors::PinData.extract(html, pin_id)
+      url = pin && pin[:image_url]
+      url ||= Extractors::Image.extract(html, quality: quality)
+      return nil unless url
+
+      Extractors::Image.apply_quality(url, quality)
+    end
+
+    def extract_pin_video(html, pin_id)
+      pin = Extractors::PinData.extract(html, pin_id)
+      (pin && pin[:video_url]) || Extractors::Video.extract(html)
+    end
+
+    def validate_pin_url!(pin_url)
+      return if pin_url.to_s.match?(PIN_URL_PATTERN)
+
+      raise InvalidURLError, "Not a Pinterest pin URL: #{pin_url.inspect}"
+    end
+  end
+end
