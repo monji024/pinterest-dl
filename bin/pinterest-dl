@@ -64,5 +64,39 @@ parser = OptionParser.new do |opts|
 end
 
 begin
+  parser.parse!(ARGV)
+rescue OptionParser::ParseError => e
+  warn "pinterest-dl: #{e.message}"
+  exit 1
+end
 
-# step-1
+command = ARGV.shift
+target = ARGV.shift
+
+if command.nil? || target.nil?
+  puts usage
+  exit(command.nil? ? 0 : 1)
+end
+
+def die(message, code = 1)
+  warn "pinterest-dl: #{message}"
+  exit code
+end
+
+def handle_pins(pins, options)
+  if pins.empty?
+    warn 'No matching pins found'
+    return
+  end
+
+  if options[:type] == :pin
+    links = pins.map { |p| p[:pin_url] }
+    if options[:output]
+      FileUtils.mkdir_p(options[:output])
+      out_file = File.join(options[:output], 'pins.txt')
+      File.write(out_file, "#{links.join("\n")}\n")
+      puts "Saved #{links.size} pin links to #{out_file}"
+    else
+      puts links
+
+# step-2
