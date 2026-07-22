@@ -1,0 +1,35 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require_relative '../lib/pinterest-dl'
+require 'optparse'
+
+def usage
+  <<~USAGE
+    pinterest-dl v#{PinterestDL::VERSION}
+
+    Usage:
+      pinterest-dl image URL [-q QUALITY] [-o FILE]
+      pinterest-dl video URL [-o FILE]
+      pinterest-dl media URL [-q QUALITY]
+      pinterest-dl search QUERY [-n LIMIT] [-t TYPE] [-q QUALITY] [-j JOBS] [-o DIR]
+      pinterest-dl board URL [-n LIMIT] [-t TYPE] [-q QUALITY] [-j JOBS] [-o DIR]
+
+    Options:
+      -o, --output PATH       File (image/video) or directory (search/board) to save to
+      -n, --limit N           Max number of results (search/board), default 25
+      -t, --type TYPE         What to collect in search/board: all, image, video, pin (default all)
+      -q, --quality Q         Image quality: originals, 1200x, 736x, 564x, 474x, 236x (default originals)
+      -c, --cookies STR|FILE  Cookie header string or Netscape cookies.txt file path
+      -j, --jobs N            Parallel download workers for batch downloads (default 4)
+      -s, --skip-existing     Skip files that already exist on disk
+          --proxy URL         HTTP/HTTPS proxy URL
+          --timeout SEC       Network read/open timeout in seconds
+          --retries N         Max retries on transient failures (default 3)
+      -v, --verbose           Enable debug logging
+          --version           Print version and exit
+      -h, --help              Show this help
+  USAGE
+end
+
+# step-0
