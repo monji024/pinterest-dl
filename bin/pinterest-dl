@@ -32,4 +32,37 @@ def usage
   USAGE
 end
 
-# step-0
+options = {
+  limit: 25,
+  quality: :originals,
+  type: :all,
+  jobs: 4,
+  skip_existing: false,
+  verbose: false
+}
+
+parser = OptionParser.new do |opts|
+  opts.on('-o PATH', '--output PATH') { |v| options[:output] = v }
+  opts.on('-n N', '--limit N', Integer) { |v| options[:limit] = v }
+  opts.on('-t T', '--type T') { |v| options[:type] = v.to_sym }
+  opts.on('-q Q', '--quality Q') { |v| options[:quality] = v.to_sym }
+  opts.on('-c STR', '--cookies STR') { |v| options[:cookies] = v }
+  opts.on('-j N', '--jobs N', Integer) { |v| options[:jobs] = v }
+  opts.on('-s', '--skip-existing') { options[:skip_existing] = true }
+  opts.on('--proxy URL') { |v| options[:proxy] = v }
+  opts.on('--timeout SEC', Integer) { |v| options[:timeout] = v }
+  opts.on('--retries N', Integer) { |v| options[:retries] = v }
+  opts.on('-v', '--verbose') { options[:verbose] = true }
+  opts.on('--version') do
+    puts PinterestDL::VERSION
+    exit 0
+  end
+  opts.on('-h', '--help') do
+    puts usage
+    exit 0
+  end
+end
+
+begin
+
+# step-1
