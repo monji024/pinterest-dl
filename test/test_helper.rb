@@ -30,5 +30,36 @@ class FakeClient
   end
 
   def raw_get(url, headers: {})
+    @calls << url
+    @last_url = url
+    @last_headers = headers
+    FakeResponse.new(body_for(url), headers_for(url))
+  end
 
-# step-0
+  def cookie(name, _url = nil)
+    lines = @raw_headers.values.flat_map { |hdrs| hdrs['set-cookie'] || [] }
+    lines.filter_map do |line|
+      key, value = line.split(';').first.split('=', 2)
+      value if key == name
+    end.last
+  end
+
+  private
+
+  def body_for(url)
+    @responses.each do |key, body|
+      matched = key.is_a?(Regexp) ? key.match?(url) : key == url
+      body = body.size > 1 ? body.shift : body.first if body.is_a?(Array)
+      return body.is_a?(Proc) ? body.call(url) : body if matched
+    end
+    raise "FakeClient: no stubbed response for #{url}"
+  end
+
+  def headers_for(url)
+    @raw_headers.each do |key, hdrs|
+      matched = key.is_a?(Regexp) ? key.match?(url) : key == url
+      return hdrs if matched
+    end
+    {}
+  end
+end
