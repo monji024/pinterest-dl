@@ -131,5 +131,37 @@ begin
     end
     c.max_retries = options[:retries] if options[:retries]
     c.logger.level = Logger::DEBUG if options[:verbose]
+  end
 
-# step-3
+  case command
+  when 'image'
+    url = PinterestDL.get_image_url(target, quality: options[:quality])
+    if options[:output]
+      PinterestDL.download(url, path: options[:output], overwrite: !options[:skip_existing])
+      puts "Saved to #{options[:output]}"
+    else
+      puts url
+    end
+  when 'video'
+    url = PinterestDL.get_video_url(target)
+    if options[:output]
+      PinterestDL.download(url, path: options[:output], overwrite: !options[:skip_existing])
+      puts "Saved to #{options[:output]}"
+    else
+      puts url
+    end
+  when 'media'
+    puts JSON.pretty_generate(PinterestDL.get_media(target, quality: options[:quality]))
+  when 'search'
+    handle_pins(PinterestDL.search(target, limit: options[:limit], type: options[:type]), options)
+  when 'board'
+    handle_pins(PinterestDL.board(target, limit: options[:limit], type: options[:type]), options)
+  else
+    die "unknown command '#{command}'\n\n#{usage}"
+  end
+rescue Interrupt
+  warn "\npinterest-dl: interrupted"
+  exit 130
+rescue PinterestDL::Error, ArgumentError => e
+  die e.message
+end
