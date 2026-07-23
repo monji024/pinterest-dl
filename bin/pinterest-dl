@@ -98,5 +98,38 @@ def handle_pins(pins, options)
       puts "Saved #{links.size} pin links to #{out_file}"
     else
       puts links
+    end
+  elsif options[:output]
+    urls = pins.filter_map do |p|
+      options[:type] == :image ? p[:image_url] : (p[:video_url] || p[:image_url])
+    end
+    bar = PinterestDL::ProgressBar.new(total: urls.size, out: $stderr)
+    result = PinterestDL.download_batch(
+      urls,
+      dir: options[:output],
+      concurrency: options[:jobs],
+      overwrite: !options[:skip_existing]
+    ) { |done, _total, _| bar.update(done) }
+    skipped_msg = result[:skipped]&.any? ? " (#{result[:skipped].size} skipped)" : ''
+    puts "Downloaded #{result[:succeeded].size}/#{urls.size} files to #{options[:output]}#{skipped_msg}"
+    exit 1 if result[:succeeded].empty? && result[:failed].any?
+  else
+    puts JSON.pretty_generate(pins)
+  end
+end
 
-# step-2
+begin
+  PinterestDL.configure do |c|
+    c.cookies = options[:cookies] if options[:cookies]
+    c.quality = options[:quality] if options[:quality]
+    c.concurrency = options[:jobs] if options[:jobs]
+    c.overwrite = !options[:skip_existing]
+    c.proxy = options[:proxy] if options[:proxy]
+    if options[:timeout]
+      c.open_timeout = options[:timeout]
+      c.read_timeout = options[:timeout]
+    end
+    c.max_retries = options[:retries] if options[:retries]
+    c.logger.level = Logger::DEBUG if options[:verbose]
+
+# step-3
