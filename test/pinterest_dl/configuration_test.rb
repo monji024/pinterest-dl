@@ -21,5 +21,27 @@ class ConfigurationTest < Minitest::Test
     assert @config.authenticated?
   end
 
+  def test_rejects_invalid_quality
+    assert_raises(ArgumentError) { @config.quality = :huge }
+  end
 
-# step-0
+  def test_accepts_valid_quality_as_string_or_symbol
+    @config.quality = '736x'
+    assert_equal :'736x', @config.quality
+  end
+
+  def test_pinterestdl_configure_yields_the_shared_config
+    PinterestDL.configure { |c| c.cookies = 'test_cookie=1' }
+    assert PinterestDL.config.authenticated?
+  ensure
+    PinterestDL.config.cookies = nil
+  end
+
+  def test_reset_restores_defaults_and_ignores_blank_cookies
+    @config.cookies = '   '
+    refute @config.authenticated?
+    @config.quality = :'736x'
+    @config.reset!
+    assert_equal :originals, @config.quality
+  end
+end
