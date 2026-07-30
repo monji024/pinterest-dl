@@ -12,5 +12,18 @@ class MediaTypeTest < Minitest::Test
     assert_equal ['1'], PinterestDL::MediaType.filter(PINS, :image).map { |p| p[:id] }
   end
 
+  def test_video_keeps_pins_with_video
+    assert_equal ['2'], PinterestDL::MediaType.filter(PINS, :video).map { |p| p[:id] }
+  end
 
-# step-0
+  def test_all_and_pin_keep_everything
+    assert_equal 2, PinterestDL::MediaType.filter(PINS, :all).size
+    assert_equal 2, PinterestDL::MediaType.filter(PINS, :pin).size
+  end
+
+  def test_parse_defaults_to_all_and_rejects_unknown
+    assert_equal :all, PinterestDL::MediaType.parse(nil)
+    assert_equal :video, PinterestDL::MediaType.parse('video')
+    assert_raises(ArgumentError) { PinterestDL::MediaType.parse(:gif) }
+  end
+end
