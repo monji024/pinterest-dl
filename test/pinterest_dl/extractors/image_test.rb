@@ -29,5 +29,35 @@ class ImageExtractorTest < Minitest::Test
     html = 'blah blah https://i.pinimg.com/474x/11/22/33/pic.png blah'
     assert_equal 'https://i.pinimg.com/originals/11/22/33/pic.png',
                  PinterestDL::Extractors::Image.extract(html)
+  end
 
-# step-0
+  def test_matches_numbered_pinimg_cdn_hosts_and_new_quality_buckets
+    html = 'https://i1.pinimg.com/564x/aa/bb/cc/pic.webp'
+    assert_equal 'https://i1.pinimg.com/1200x/aa/bb/cc/pic.webp',
+                 PinterestDL::Extractors::Image.extract(html, quality: :'1200x')
+  end
+
+  def test_replaces_arbitrary_dimension_bucket_when_applying_quality
+    url = 'https://i0.pinimg.com/600x315/aa/bb/img.jpg'
+    assert_equal 'https://i0.pinimg.com/originals/aa/bb/img.jpg',
+                 PinterestDL::Extractors::Image.apply_quality(url, :originals)
+  end
+
+  def test_raw_pattern_does_not_bleed_into_trailing_css
+    html = <<~HTML
+      <style>.x{background:url(https://i.pinimg.com/originals/d5/3b/01/d53b014.png)}._YsBbF{border:0}</style>
+    HTML
+    assert_equal 'https://i.pinimg.com/originals/d5/3b/01/d53b014.png',
+                 PinterestDL::Extractors::Image.extract(html)
+  end
+
+  def test_returns_nil_when_nothing_found
+    assert_nil PinterestDL::Extractors::Image.extract('<html><body>nothing here</body></html>')
+  end
+
+  def test_applies_requested_quality
+    html = '<meta property="og:image" content="https://i.pinimg.com/originals/aa/bb/img.jpg">'
+    result = PinterestDL::Extractors::Image.extract(html, quality: :'236x')
+    assert_equal 'https://i.pinimg.com/236x/aa/bb/img.jpg', result
+  end
+end
