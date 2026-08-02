@@ -32,5 +32,37 @@ class PinDataExtractorTest < Minitest::Test
     result = PinterestDL::Extractors::PinData.extract(html)
     assert_equal 'https://i.pinimg.com/originals/x.jpg', result[:image_url]
     assert_nil result[:video_url]
+  end
 
-# step-0
+  def test_returns_nil_when_no_embedded_script_present
+    assert_nil PinterestDL::Extractors::PinData.extract('<html><body>nothing here</body></html>')
+  end
+
+  def test_returns_nil_when_embedded_script_is_not_valid_json
+    html = '<script id="__PWS_DATA__" type="application/json">{not valid json</script>'
+    assert_nil PinterestDL::Extractors::PinData.extract(html)
+  end
+
+  def test_ignores_css_or_unrelated_hashes_without_an_images_key
+    html = <<~HTML
+      <script id="__PWS_DATA__" type="application/json">
+      {"styles": {"foo": "bar"}, "pins": {"1": {"images": {"orig": {"url": "https://i.pinimg.com/originals/real.jpg"}}}}}
+      </script>
+    HTML
+
+    result = PinterestDL::Extractors::PinData.extract(html)
+    assert_equal 'https://i.pinimg.com/originals/real.jpg', result[:image_url]
+  end
+
+  def test_extracts_from_relay_response_script_and_converts_hls
+    html = <<~HTML
+      <script data-relay-response="true" type="application/json">
+      {"pin":{"id":"55","images":{"736x":{"url":"https://i.pinimg.com/736x/a.jpg"}},
+       "videos":{"video_list":{"V_HLSV3":{"url":"https://v1.pinimg.com/videos/iht/hls/clip.m3u8"}}}}}
+      </script>
+    HTML
+    result = PinterestDL::Extractors::PinData.extract(html, '55')
+    assert_equal 'https://i.pinimg.com/736x/a.jpg', result[:image_url]
+    assert_equal 'https://v1.pinimg.com/videos/iht/expMp4/clip_720w.mp4', result[:video_url]
+  end
+end
