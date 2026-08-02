@@ -28,4 +28,31 @@ class DownloaderTest < Minitest::Test
       )
       downloader = PinterestDL::Downloader.new(client: client, config: PinterestDL::Configuration.new)
 
-# step-0
+      progress_calls = []
+      result = downloader.download_batch(
+        ['https://i.pinimg.com/originals/good.jpg', 'https://i.pinimg.com/originals/bad.jpg'],
+        dir: dir
+      ) { |done, total, _url| progress_calls << [done, total] }
+
+      assert_equal 1, result[:succeeded].size
+      assert_equal 1, result[:failed].size
+      assert_equal [[1, 2], [2, 2]], progress_calls
+    end
+  end
+
+  def test_download_rejects_empty_url_or_path
+    downloader = PinterestDL::Downloader.new(client: FakeClient.new, config: PinterestDL::Configuration.new)
+    assert_raises(ArgumentError) { downloader.download('', path: 'out.jpg') }
+    assert_raises(ArgumentError) { downloader.download('https://i.pinimg.com/originals/a.jpg', path: '  ') }
+  end
+
+  def test_download_batch_supports_custom_filename_callable
+    Dir.mktmpdir do |dir|
+      client = FakeClient.new({ /pinimg/ => 'data' })
+      downloader = PinterestDL::Downloader.new(client: client, config: PinterestDL::Configuration.new)
+      res = downloader.download_batch(['https://i.pinimg.com/originals/a.jpg'], dir: dir,
+                                      filename: ->(_u, i) { "custom_#{i}.jpg" })
+      assert_equal [File.join(dir, 'custom_0.jpg')], res[:succeeded]
+    end
+  end
+end
