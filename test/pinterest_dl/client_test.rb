@@ -43,5 +43,48 @@ class ClientTest < Minitest::Test
   end
 
   def page_response(has_cookie)
+    return ['200 OK', '', 'final page'] if has_cookie
 
-# step-0
+    ['302 Found', "Location: /page\r\nSet-Cookie: sess=1; Path=/\r\n", '']
+  end
+
+  def test_follows_redirects_and_keeps_cookies
+    client = PinterestDL::Client.new
+    assert_equal 'final page', client.get("#{@base}/start")
+    assert_equal "#{@base}/page", client.last_url
+  end
+
+  def test_raises_on_redirect_loop
+    error = assert_raises(PinterestDL::NetworkError) { PinterestDL::Client.new.get("#{@base}/loop") }
+    assert_includes error.message, 'Too many redirects'
+  end
+
+  def test_raw_get_returns_the_final_response
+    client = PinterestDL::Client.new
+    response = client.raw_get("#{@base}/relative")
+
+    assert_equal 'ok', response.body
+    assert_equal "#{@base}/sub/page", client.last_url
+    assert_equal 'abc123', client.cookie('csrftoken')
+  end
+
+  def test_raises_not_found
+    assert_raises(PinterestDL::NotFoundError) { PinterestDL::Client.new.get("#{@base}/missing") }
+  end
+
+  def test_cookie_lookup_handles_nil_url_safely
+    client = PinterestDL::Client.new
+    assert_nil client.cookie('csrftoken')
+  end
+
+  def test_caches_get_responses_until_cleared
+    client = PinterestDL::Client.new
+    assert_equal 'ok', client.get("#{@base}/sub/page")
+    assert_equal 'ok', client.get("#{@base}/sub/page")
+    client.clear_cache
+  end
+
+  def test_raises_authentication_error_on_401
+    assert_raises(PinterestDL::AuthenticationError) { PinterestDL::Client.new.get("#{@base}/unauth") }
+  end
+end
