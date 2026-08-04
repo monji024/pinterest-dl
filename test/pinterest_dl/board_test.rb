@@ -53,5 +53,60 @@ class BoardTest < Minitest::Test
     assert_equal 1, pins.size
     assert_equal 'https://i.pinimg.com/originals/a.jpg', pins.first[:image_url]
 
+    feed_call = client.calls.find { |u| u.include?('BoardFeedResource') }
+    refute_nil feed_call
+    assert_includes CGI.unescape(feed_call), '"board_id":"B1"'
+    assert_equal 'abc123', client.last_headers['X-CSRFToken']
+  end
 
-# step-0
+  def test_returns_empty_array_when_board_has_no_pins
+    board, = build_board(feed_json([], bookmark: nil))
+    assert_equal [], board.call('https://www.pinterest.com/someuser/someboard/')
+  end
+
+  def test_share_link_with_invite_code_is_not_read_as_a_section
+    board, client = build_board(feed_json([pin_json('1')]))
+
+    pins = board.call('https://www.pinterest.com/someuser/someboard/?invite_code=abc&sender=1')
+
+    assert_equal 1, pins.size
+    assert(client.calls.none? { |u| u.include?('BoardSectionPinsResource') })
+  end
+
+  def test_raises_not_found_when_board_id_is_missing
+    client = FakeClient.new(
+      { BOARD_PAGE => '<html></html>', %r{BoardResource} => { resource_response: { data: nil } }.to_json }
+    )
+    board = PinterestDL::Board.new(client: client, config: PinterestDL::Configuration.new)
+
+    assert_raises(PinterestDL::NotFoundError) { board.call('https://www.pinterest.com/someuser/someboard/') }
+  end
+
+  def test_type_video_keeps_only_video_pins
+    board, = build_board(feed_json([pin_json('1'), pin_json('2', video: true)]))
+
+    pins = board.call('https://www.pinterest.com/someuser/someboard/', type: :video)
+
+    assert_equal ['2'], pins.map { |p| p[:id] }
+    assert_equal 'https://v1.pinimg.com/videos/2.mp4', pins.first[:video_url]
+  end
+
+  def test_type_image_skips_video_pins
+    board, = build_board(feed_json([pin_json('1'), pin_json('2', video: true)]))
+
+    pins = board.call('https://www.pinterest.com/someuser/someboard/', type: :image)
+
+    assert_equal ['1'], pins.map { |p| p[:id] }
+  end
+
+  def test_board_id_is_read_from_the_page_without_extra_request
+    page = '<script id="__PWS_DATA__" type="application/json">{"b":{"type":"board","id":"555","url":"/someuser/someboard/"}}</script>'
+    client = FakeClient.new({ BOARD_PAGE => page, %r{BoardFeedResource} => feed_json([pin_json('1')]) })
+    board = PinterestDL::Board.new(client: client, config: PinterestDL::Configuration.new)
+
+    board.call('https://www.pinterest.com/someuser/someboard/')
+
+    assert(client.calls.none? { |u| u.include?('BoardResource') })
+    assert_includes CGI.unescape(client.calls.find { |u| u.include?('BoardFeedResource') }), '"board_id":"555"'
+
+# step-1
