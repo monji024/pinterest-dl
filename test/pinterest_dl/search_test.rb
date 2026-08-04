@@ -47,5 +47,52 @@ class SearchTest < Minitest::Test
     search = PinterestDL::Search.new(client: client, config: PinterestDL::Configuration.new)
 
     pins = search.call('cats', limit: 2, pages: 3)
+    assert_equal %w[1 2], pins.map { |p| p[:id] }
+    assert_equal 1, client.calls.count { |u| u.match?(SEARCH_PAGE) }
+  end
 
-# step-0
+  def test_filters_results_by_video_and_image_type
+    payload = search_json([pin_node('1', video: false), pin_node('2', video: true)])
+    client = FakeClient.new({ SEARCH_PAGE => '<html></html>', %r{BaseSearchResource} => payload })
+    search = PinterestDL::Search.new(client: client, config: PinterestDL::Configuration.new)
+
+    videos = search.call('clips', type: :video)
+    assert_equal ['2'], videos.map { |p| p[:id] }
+  end
+
+  def test_handles_array_data_node_in_search_response
+    payload = { resource_response: { data: [pin_node('77')], bookmark: '-end-' } }.to_json
+    client = FakeClient.new({ SEARCH_PAGE => '<html></html>', %r{BaseSearchResource} => payload })
+    search = PinterestDL::Search.new(client: client, config: PinterestDL::Configuration.new)
+
+    pins = search.call('minimal')
+    assert_equal ['77'], pins.map { |p| p[:id] }
+  end
+
+  def test_applies_configured_quality_to_search_images
+    config = PinterestDL::Configuration.new
+    config.quality = :'474x'
+    client = FakeClient.new({ SEARCH_PAGE => '<html></html>', %r{BaseSearchResource} => search_json([pin_node('5')]) })
+    search = PinterestDL::Search.new(client: client, config: config)
+
+    pins = search.call('poster')
+    assert_equal 'https://i.pinimg.com/474x/5.jpg', pins.first[:image_url]
+  end
+
+  def test_falls_back_to_embedded_html_pins_when_api_returns_empty
+    html = '<script id="__PWS_DATA__" type="application/json">'            '{"pins":{"88":{"id":"88","images":{"orig":{"url":"https://i.pinimg.com/originals/88.jpg"}}}}}</script>'
+    client = FakeClient.new({ SEARCH_PAGE => html, %r{BaseSearchResource} => search_json([]) })
+    search = PinterestDL::Search.new(client: client, config: PinterestDL::Configuration.new)
+
+    pins = search.call('fallback')
+    assert_equal ['88'], pins.map { |p| p[:id] }
+  end
+
+  def test_raises_on_empty_query_and_invalid_json
+    client = FakeClient.new({ SEARCH_PAGE => '<html></html>', %r{BaseSearchResource} => 'not-json' })
+    search = PinterestDL::Search.new(client: client, config: PinterestDL::Configuration.new)
+
+    assert_raises(ArgumentError) { search.call('   ') }
+    assert_raises(PinterestDL::NotFoundError) { search.call('broken') }
+  end
+end
