@@ -108,5 +108,58 @@ class BoardTest < Minitest::Test
 
     assert(client.calls.none? { |u| u.include?('BoardResource') })
     assert_includes CGI.unescape(client.calls.find { |u| u.include?('BoardFeedResource') }), '"board_id":"555"'
+  end
 
-# step-1
+  def test_story_items_are_not_pins
+    story = { id: '9', type: 'story', title: { text: 'Related interests' } }
+    board, = build_board(feed_json([story, pin_json('1').merge(type: 'pin')]))
+
+    pins = board.call('https://www.pinterest.com/someuser/someboard/')
+
+    assert_equal ['1'], pins.map { |p| p[:id] }
+  end
+
+  def test_fetches_board_section_pins
+    sections = { resource_response: { data: [{ 'id' => 'SEC1', 'slug' => 'ui' }] } }.to_json
+    client = FakeClient.new(
+      { BOARD_PAGE => '<html></html>',
+        %r{BoardResource} => BOARD_INFO,
+        %r{BoardSectionsResource} => sections,
+        %r{BoardSectionPinsResource} => feed_json([pin_json('42')]) }
+    )
+    board = PinterestDL::Board.new(client: client, config: PinterestDL::Configuration.new)
+    pins = board.call('https://www.pinterest.com/someuser/someboard/UI/')
+    assert_equal ['42'], pins.map { |p| p[:id] }
+  end
+
+  def test_matches_board_slug_case_insensitively_in_page_data
+    page = '<script id="__PWS_DATA__" type="application/json">' \
+           '{"b":{"type":"board","id":"777","url":"/someuser/someboard/"}}</script>'
+    client = FakeClient.new({ %r{pinterest\.com/someuser/SomeBoard/?\z} => page,
+                              %r{BoardFeedResource} => feed_json([pin_json('1')]) })
+    board = PinterestDL::Board.new(client: client, config: PinterestDL::Configuration.new)
+    pins = board.call('https://www.pinterest.com/someuser/SomeBoard/')
+    assert_equal ['1'], pins.map { |p| p[:id] }
+  end
+
+  def test_falls_back_to_embedded_pins_in_html_when_feed_is_empty
+    page = '<script id="__PWS_DATA__" type="application/json">' \
+           '{"b":{"type":"board","id":"555","url":"/someuser/someboard/"},' \
+           '"p":{"id":"99","images":{"orig":{"url":"https://i.pinimg.com/originals/99.jpg"}}}}</script>'
+    client = FakeClient.new({ BOARD_PAGE => page, %r{BoardFeedResource} => feed_json([]) })
+    board = PinterestDL::Board.new(client: client, config: PinterestDL::Configuration.new)
+    pins = board.call('https://www.pinterest.com/someuser/someboard/')
+    assert_equal ['99'], pins.map { |p| p[:id] }
+  end
+
+  def test_applies_configured_quality_to_board_pin_images
+    config = PinterestDL::Configuration.new
+    config.quality = :'236x'
+    client = FakeClient.new({ BOARD_PAGE => '<html></html>',
+                              %r{BoardResource} => BOARD_INFO,
+                              %r{BoardFeedResource} => feed_json([pin_json('1')]) })
+    board = PinterestDL::Board.new(client: client, config: config)
+    pins = board.call('https://www.pinterest.com/someuser/someboard/')
+    assert_equal 'https://i.pinimg.com/236x/1.jpg', pins.first[:image_url]
+  end
+end
