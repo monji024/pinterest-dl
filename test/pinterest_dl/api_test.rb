@@ -134,4 +134,70 @@ class ApiTest < Minitest::Test
 
     PinterestDL.get_video_url('https://www.pinterest.com/pin/123/', client: client)
 
-# step-1
+    assert_equal 'www/pin/[id].js', client.last_headers['X-Pinterest-PWS-Handler']
+    assert_equal 'XMLHttpRequest', client.last_headers['X-Requested-With']
+  end
+
+  def test_get_video_url_tries_the_page_again_when_first_one_has_no_video
+    thin = '<meta property="og:image" content="https://i.pinimg.com/originals/aa/bb/thumb.jpg">'
+    full = '<meta property="og:video" content="https://v1.pinimg.com/videos/x/full.mp4">'
+    client = FakeClient.new({ %r{PinResource} => '{}', %r{pinterest\.com/pin} => [thin, full] })
+
+    url = PinterestDL.get_video_url('https://www.pinterest.com/pin/123/', client: client)
+    assert_equal 'https://v1.pinimg.com/videos/x/full.mp4', url
+  end
+
+  def test_video_is_found_in_a_second_pws_script_block
+    html = <<~HTML
+      <script id="__PWS_DATA__" type="application/json">{"pin":{"id":"7","images":{"orig":{"url":"https://i.pinimg.com/originals/t.jpg"}}}}</script>
+      <script id="__PWS_INITIAL_PROPS__" type="application/json">
+      {"pin":{"id":"7","videos":{"video_list":{"V_720P":{"url":"https://v1.pinimg.com/videos/a/b.mp4","width":720,"height":1280}}}}}
+      </script>
+    HTML
+    client = FakeClient.new({ %r{pinterest\.com/pin} => html })
+
+    assert_equal 'https://v1.pinimg.com/videos/a/b.mp4', PinterestDL.get_video_url('https://www.pinterest.com/pin/7/', client: client)
+  end
+
+  def test_search_rejects_unknown_type
+    assert_raises(ArgumentError) { PinterestDL.search('cats', type: :gif) }
+  end
+
+  def test_search_json_returns_pretty_json_string
+    PinterestDL.stub(:search, [{ id: '1', image_url: 'https://i.pinimg.com/originals/a.jpg' }]) do
+      json = PinterestDL.search_json('cats', limit: 1)
+      parsed = JSON.parse(json)
+      assert_equal '1', parsed.first['id']
+    end
+  end
+
+  def test_search_images_filters_to_image_urls_only
+    pins = [{ image_url: 'https://i.pinimg.com/originals/a.jpg', video_url: nil },
+            { image_url: nil, video_url: 'https://v.pinimg.com/videos/b.mp4' }]
+    PinterestDL.stub(:search, pins) do
+      assert_equal ['https://i.pinimg.com/originals/a.jpg'], PinterestDL.search_images('cats')
+    end
+  end
+
+  def test_get_media_falls_back_to_api_when_page_is_incomplete
+    api = {
+      resource_response: {
+        data: {
+          images: { orig: { url: 'https://i.pinimg.com/originals/m.jpg' } },
+          videos: { video_list: { V_720P: { url: 'https://v1.pinimg.com/videos/m.mp4', width: 720, height: 1280 } } }
+        }
+      }
+    }.to_json
+    client = FakeClient.new({ %r{PinResource} => api, %r{pinterest\.com/pin} => '<html></html>' })
+    media = PinterestDL.get_media('https://www.pinterest.com/pin/123/', client: client)
+    assert_equal 'https://i.pinimg.com/originals/m.jpg', media[:image_url]
+    assert_equal 'https://v1.pinimg.com/videos/m.mp4', media[:video_url]
+  end
+
+  def test_search_videos_filters_to_video_urls_only
+    pins = [{ image_url: 'https://i.pinimg.com/originals/a.jpg', video_url: 'https://v.pinimg.com/videos/b.mp4' }]
+    PinterestDL.stub(:search, pins) do
+      assert_equal ['https://v.pinimg.com/videos/b.mp4'], PinterestDL.search_videos('clips')
+    end
+  end
+end
