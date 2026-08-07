@@ -72,5 +72,79 @@ url = PinterestDL.get_video_url('https://www.pinterest.com/pin/example/')
 
 # Both at once
 media = PinterestDL.get_media('https://www.pinterest.com/pin/example/')
+# => { image_url: "https://i.pinimg.com/...", video_url: nil }
+```
 
-# step-0
+### Search
+
+```ruby
+results = PinterestDL.search('nature landscape', limit: 10)
+# => [{ id: "...", pin_url: "...", title: "...", description: "...", creator: "...", image_url: "...", video_url: nil }, ...]
+
+# Page count scales with limit, or cap it yourself with pages:
+results = PinterestDL.search('nature landscape', limit: 150)
+video_pins = PinterestDL.search('motion graphics', limit: 20, type: :video)
+
+images = PinterestDL.search_images('sunset', limit: 5)
+# => ["https://i.pinimg.com/originals/...", ...]
+
+videos = PinterestDL.search_videos('tutorial', limit: 3)
+# => ["https://v.pinimg.com/videos/...", ...]
+
+json_results = PinterestDL.search_json('anime art', limit: 20)
+```
+
+### Boards & sections
+
+```ruby
+# All pins on a board
+pins = PinterestDL.board('https://www.pinterest.com/username/board-name/', limit: 100)
+
+# Only videos from a board
+videos = PinterestDL.board('https://www.pinterest.com/username/board-name/', limit: 50, type: :video)
+
+# A specific section within a board
+pins = PinterestDL.board('https://www.pinterest.com/username/board-name/section-slug/', limit: 50)
+```
+
+### Downloading
+
+```ruby
+# Single file
+PinterestDL.download('https://i.pinimg.com/originals/aa/bb/cc/img.jpg', path: 'out/img.jpg')
+
+# Skip if already on disk
+PinterestDL.download(url, path: 'out/img.jpg', overwrite: false)
+
+# Batch download (returns { succeeded: [...], failed: [{ url:, error: }, ...], skipped: [...] })
+urls = PinterestDL.search_images('mountains', limit: 40)
+result = PinterestDL.download_batch(urls, dir: './downloads', concurrency: 6, overwrite: false)
+
+# With progress reporting
+bar = PinterestDL::ProgressBar.new(total: urls.size, out: $stderr)
+PinterestDL.download_batch(urls, dir: './downloads') do |done, total, url|
+  bar.update(done)
+end
+```
+
+### Cookies / authenticated sessions
+
+Some boards and pins require a logged-in session to view. Pass your browser's Pinterest cookies (either a raw string or a Netscape `cookies.txt` path) through global configuration:
+
+```ruby
+PinterestDL.configure do |c|
+  c.cookies    = 'sessionid=...; csrftoken=...' # yeah, steal your own fucking session if you have to
+  # c.cookies  = File.expand_path('~/cookies.txt')
+  c.user_agent = 'Mozilla/5.0 ...' # optional override
+end
+```
+
+### Other configuration
+
+```ruby
+PinterestDL.configure do |c|
+  c.open_timeout        = 10   # seconds, connection open timeout
+  c.read_timeout        = 20   # seconds, response read timeout
+  c.write_timeout       = 20   # seconds, request write timeout
+
+# step-1
