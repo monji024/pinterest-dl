@@ -146,5 +146,77 @@ PinterestDL.configure do |c|
   c.open_timeout        = 10   # seconds, connection open timeout
   c.read_timeout        = 20   # seconds, response read timeout
   c.write_timeout       = 20   # seconds, request write timeout
+  c.max_retries         = 3    # retries on transient network / 429 / 5xx failures
+  c.retry_wait          = 1.0  # base seconds between retries
+  c.rate_limit_interval = 0.5  # minimum seconds between outgoing requests
+  c.concurrency         = 4    # parallel worker threads for download_batch
+  c.overwrite           = true # set false to skip existing files
+  c.proxy               = nil  # HTTP/HTTPS proxy URL (defaults to ENV)
+  c.quality             = :originals # default image quality
+  c.max_cache_entries   = 256  # in-memory GET cache cap
+  c.logger.level        = Logger::INFO # library uses this Logger instead of puts
+end
+```
 
-# step-1
+### Error handling
+
+Every method raises a subclass of `PinterestDL::Error` instead of returning `nil` or printing to the console:
+
+```ruby
+begin
+  PinterestDL.get_image_url('https://www.pinterest.com/pin/does-not-exist/')
+rescue PinterestDL::NotFoundError
+  # pin/board/search had nothing to extract
+rescue PinterestDL::RateLimitError => e
+  # Pinterest throttled us; e.retry_after may hold a hint
+rescue PinterestDL::AuthenticationError
+  # the resource needs c.cookies to be set
+rescue PinterestDL::NetworkError => e
+  # DNS/timeout/connection-level failure; e.cause_error has the original exception
+rescue PinterestDL::InvalidURLError
+  # the given string isn't a Pinterest pin/board URL
+rescue PinterestDL::DownloadError
+  # disk or stream failure while saving a file
+rescue PinterestDL::Error
+  # catch-all for anything above
+end
+```
+
+### CLI
+
+```bash
+pinterest-dl image https://www.pinterest.com/pin/example/
+pinterest-dl image https://www.pinterest.com/pin/example/ -o pin.jpg
+pinterest-dl video https://www.pinterest.com/pin/example/ -o pin.mp4
+pinterest-dl media https://www.pinterest.com/pin/example/
+pinterest-dl search "cyberpunk city" -n 20
+pinterest-dl search "cyberpunk city" -n 50 -j 8 -o ./downloads
+pinterest-dl board https://www.pinterest.com/username/board-name/ -n 100 -j 6 -s -o ./downloads
+pinterest-dl board https://www.pinterest.com/username/board-name/ -t video -o ./videos
+pinterest-dl search "cats" -t image -n 30 -o ./images
+pinterest-dl search "cats" -t pin -n 30
+pinterest-dl board https://www.pinterest.com/username/secret/ -c ~/cookies.txt --proxy http://127.0.0.1:10809 -o ./secret
+pinterest-dl --help
+```
+
+Flags: `-o/--output`, `-n/--limit`, `-t/--type` (`all`, `image`, `video`, `pin`), `-q/--quality`, `-c/--cookies`, `-j/--jobs`, `-s/--skip-existing`, `--proxy`, `--timeout`, `--retries`, `-v/--verbose`, `--version`.
+
+## Development
+
+```bash
+bundle install
+bundle exec rake test     # run the test suite
+bundle exec rake rubocop  # lint
+bundle exec rake          # both (default task)
+```
+
+## Links
+
+- [RubyGems](https://rubygems.org/gems/pinterest-dl)
+- [GitHub](https://github.com/monji024/pinterest-dl)
+- [Changelog](CHANGELOG.md)
+- [Issue tracker](https://github.com/monji024/pinterest-dl/issues)
+
+## License
+
+WTFPL — [monji024](https://github.com/monji024)
