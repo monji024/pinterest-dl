@@ -2,5 +2,5 @@
 
 # Monji024
 module PinterestDL
-  VERSION = '2.0.2'
+  VERSION = '2.0.4'
 end
