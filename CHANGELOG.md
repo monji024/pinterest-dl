@@ -3,7 +3,7 @@
 All notable changes to this project are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
-## [2.0.3]
+## [2.0.4]
 
 ### Fixed
 - **`PinterestDL::Board` was broken.** `lib/pinterest_dl/board.rb` accidentally
