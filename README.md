@@ -4,7 +4,6 @@
 
 [![Gem Version](https://img.shields.io/gem/v/pinterest-dl)](https://rubygems.org/gems/pinterest-dl)  
 [![Gem Downloads](https://img.shields.io/gem/dt/pinterest-dl)](https://rubygems.org/gems/pinterest-dl)  
-[![CI](https://github.com/monji024/pinterest-dl/actions/workflows/ci.yml/badge.svg)](https://github.com/monji024/pinterest-dl/actions/workflows/ci.yml)  
 [![License](https://img.shields.io/badge/License-WTFPL-blue)](LICENSE)  
 [![Ruby](https://img.shields.io/badge/Ruby-2.7+-red)](https://www.ruby-lang.org/)  
 <img src="https://img.icons8.com/color/96/000000/pinterest--v1.png" width="80">
