@@ -1,0 +1,107 @@
+#!/usr/bin/env ruby
+# Monji024
+require_relative '../lib/pinterest-dl'
+require 'optparse'
+
+def usage
+  <<~USAGE
+    pinterest-dl v#{PinterestDL::VERSION}
+
+    Usage:
+      pinterest-dl image URL [-o FILE]
+      pinterest-dl video URL [-o FILE]
+      pinterest-dl search QUERY [-n LIMIT] [-o DIR]
+      pinterest-dl board URL [-n LIMIT] [-o DIR]
+
+    Options:
+      -o, --output PATH   File (image/video) or directory (search/board) to save to
+      -n, --limit N       Max number of results (search/board), default 25
+      -q, --quality Q     Image quality: originals, 736x, 474x, 236x (default originals)
+      -c, --cookies STR   Cookie string for authenticated requests
+      -v, --verbose       Print debug logging
+      -h, --help          Show this help
+  USAGE
+end
+
+options = { limit: 25, quality: :originals }
+parser = OptionParser.new do |opts|
+  opts.on('-o PATH', '--output PATH') { |v| options[:output] = v }
+  opts.on('-n N', '--limit N', Integer) { |v| options[:limit] = v }
+  opts.on('-q Q', '--quality Q') { |v| options[:quality] = v.to_sym }
+  opts.on('-c STR', '--cookies STR') { |v| options[:cookies] = v }
+  opts.on('-v', '--verbose') { options[:verbose] = true }
+  opts.on('-h', '--help') do
+    puts usage
+    exit 0
+  end
+end
+
+begin
+  parser.parse!(ARGV)
+rescue OptionParser::ParseError => e
+  warn "pinterest-dl: #{e.message}"
+  exit 1
+end
+
+command = ARGV.shift
+target = ARGV.shift
+
+if command.nil? || target.nil?
+  puts usage
+  exit(command.nil? ? 0 : 1)
+end
+
+PinterestDL.configure do |c|
+  c.cookies = options[:cookies] if options[:cookies]
+  c.logger.level = Logger::DEBUG if options[:verbose]
+end
+
+def die(message)
+  warn "pinterest-dl: #{message}"
+  exit 1
+end
+
+begin
+  case command
+  when 'image'
+    url = PinterestDL.get_image_url(target, quality: options[:quality])
+    if options[:output]
+      PinterestDL.download(url, path: options[:output])
+      puts "Saved to #{options[:output]}"
+    else
+      puts url
+    end
+  when 'video'
+    url = PinterestDL.get_video_url(target)
+    if options[:output]
+      PinterestDL.download(url, path: options[:output])
+      puts "Saved to #{options[:output]}"
+    else
+      puts url
+    end
+  when 'search'
+    pins = PinterestDL.search(target, limit: options[:limit])
+    if options[:output]
+      urls = pins.filter_map { |p| p[:image_url] }
+      bar = PinterestDL::ProgressBar.new(total: urls.size)
+      result = PinterestDL.download_batch(urls, dir: options[:output]) { |done, total, _| bar.update(done) }
+      puts "Downloaded #{result[:succeeded].size}/#{urls.size} images to #{options[:output]}"
+    else
+      puts JSON.pretty_generate(pins)
+    end
+  when 'board'
+    pins = PinterestDL.board(target, limit: options[:limit])
+    if options[:output]
+      urls = pins.filter_map { |p| p[:image_url] }
+      bar = PinterestDL::ProgressBar.new(total: urls.size)
+      result = PinterestDL.download_batch(urls, dir: options[:output]) { |done, total, _| bar.update(done) }
+      puts "Downloaded #{result[:succeeded].size}/#{urls.size} images to #{options[:output]}"
+    else
+      puts JSON.pretty_generate(pins)
+    end
+  else
+    die "unknown command '#{command}'\n\n#{usage}"
+  end
+rescue PinterestDL::Error => e
+  die e.message
+end

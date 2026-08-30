@@ -1,0 +1,46 @@
+AllCops:
+  NewCops: enable
+  TargetRubyVersion: 2.7
+  Exclude:
+    - 'bin/**/*'
+    - 'vendor/**/*'
+    - 'lib/pinterest-dl.rb'
+
+Style/Documentation:
+  Enabled: false
+
+Style/FrozenStringLiteralComment:
+  EnforcedStyle: always
+
+Metrics/MethodLength:
+  Max: 30
+
+Metrics/AbcSize:
+  Max: 50
+
+Metrics/CyclomaticComplexity:
+  Max: 20
+
+Metrics/PerceivedComplexity:
+  Max: 20
+  
+Metrics/ClassLength:
+  Max: 150
+  
+Metrics/BlockLength:
+  Exclude:
+    - 'test/**/*'
+    - '*.gemspec'
+
+Layout/LineLength:
+  Max: 120
+
+Style/SafeNavigationChainLength:
+  Enabled: false
+
+Style/FormatStringToken:
+  Enabled: false
+
+Lint/UnusedMethodArgument:
+  AllowUnusedKeywordArguments: true
+  
