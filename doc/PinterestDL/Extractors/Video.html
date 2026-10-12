@@ -192,6 +192,28 @@
         <li class="public ">
   <span class="summary_signature">
     
+      <a href="#from_raw_pattern-class_method" title="from_raw_pattern (class method)">.<strong>from_raw_pattern</strong>(html)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'></div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
       <a href="#unescape-class_method" title="unescape (class method)">.<strong>unescape</strong>(url)  &#x21d2; Object </a>
     
 
@@ -247,7 +269,7 @@
       <pre class="code"><span class="info file"># File 'lib/pinterest_dl/extractors/video.rb', line 9</span>
 
 <span class='kw'>def</span> <span class='id identifier rubyid_extract'>extract</span><span class='lparen'>(</span><span class='id identifier rubyid_html'>html</span><span class='rparen'>)</span>
-  <span class='id identifier rubyid_url'>url</span> <span class='op'>=</span> <span class='id identifier rubyid_from_json_ld'>from_json_ld</span><span class='lparen'>(</span><span class='id identifier rubyid_html'>html</span><span class='rparen'>)</span> <span class='op'>||</span> <span class='id identifier rubyid_from_open_graph'>from_open_graph</span><span class='lparen'>(</span><span class='id identifier rubyid_html'>html</span><span class='rparen'>)</span> <span class='op'>||</span> <span class='id identifier rubyid_from_content_url'>from_content_url</span><span class='lparen'>(</span><span class='id identifier rubyid_html'>html</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_url'>url</span> <span class='op'>=</span> <span class='id identifier rubyid_from_json_ld'>from_json_ld</span><span class='lparen'>(</span><span class='id identifier rubyid_html'>html</span><span class='rparen'>)</span> <span class='op'>||</span> <span class='id identifier rubyid_from_open_graph'>from_open_graph</span><span class='lparen'>(</span><span class='id identifier rubyid_html'>html</span><span class='rparen'>)</span> <span class='op'>||</span> <span class='id identifier rubyid_from_content_url'>from_content_url</span><span class='lparen'>(</span><span class='id identifier rubyid_html'>html</span><span class='rparen'>)</span> <span class='op'>||</span> <span class='id identifier rubyid_from_raw_pattern'>from_raw_pattern</span><span class='lparen'>(</span><span class='id identifier rubyid_html'>html</span><span class='rparen'>)</span>
   <span class='kw'>return</span> <span class='kw'>nil</span> <span class='kw'>unless</span> <span class='id identifier rubyid_url'>url</span>
 
   <span class='id identifier rubyid_unescape'>unescape</span><span class='lparen'>(</span><span class='id identifier rubyid_url'>url</span><span class='rparen'>)</span>
@@ -272,13 +294,13 @@
       <pre class="lines">
 
 
+24
 25
 26
-27
-28</pre>
+27</pre>
     </td>
     <td>
-      <pre class="code"><span class="info file"># File 'lib/pinterest_dl/extractors/video.rb', line 25</span>
+      <pre class="code"><span class="info file"># File 'lib/pinterest_dl/extractors/video.rb', line 24</span>
 
 <span class='kw'>def</span> <span class='id identifier rubyid_from_content_url'>from_content_url</span><span class='lparen'>(</span><span class='id identifier rubyid_html'>html</span><span class='rparen'>)</span>
   <span class='id identifier rubyid_match'>match</span> <span class='op'>=</span> <span class='id identifier rubyid_html'>html</span><span class='period'>.</span><span class='id identifier rubyid_match'>match</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>&quot;contentUrl&quot;\s*:\s*&quot;([^&quot;]+\.mp4[^&quot;]*)&quot;</span><span class='regexp_end'>/</span></span><span class='rparen'>)</span>
@@ -336,15 +358,47 @@
 
 20
 21
-22
-23</pre>
+22</pre>
     </td>
     <td>
       <pre class="code"><span class="info file"># File 'lib/pinterest_dl/extractors/video.rb', line 20</span>
 
 <span class='kw'>def</span> <span class='id identifier rubyid_from_open_graph'>from_open_graph</span><span class='lparen'>(</span><span class='id identifier rubyid_html'>html</span><span class='rparen'>)</span>
-  <span class='id identifier rubyid_match'>match</span> <span class='op'>=</span> <span class='id identifier rubyid_html'>html</span><span class='period'>.</span><span class='id identifier rubyid_match'>match</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>&lt;meta[^&gt;]*property=[&quot;&#39;]og:video[&quot;&#39;][^&gt;]*content=[&quot;&#39;]([^&quot;&#39;]+)[&quot;&#39;]</span><span class='regexp_end'>/</span></span><span class='rparen'>)</span>
-  <span class='id identifier rubyid_match'>match</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_match'>match</span><span class='lbracket'>[</span><span class='int'>1</span><span class='rbracket'>]</span>
+  <span class='const'><span class='object_link'><a href="../../PinterestDL.html" title="PinterestDL (module)">PinterestDL</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="../Extractors.html" title="PinterestDL::Extractors (module)">Extractors</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="Meta.html" title="PinterestDL::Extractors::Meta (module)">Meta</a></span></span><span class='period'>.</span><span class='id identifier rubyid_content'><span class='object_link'><a href="Meta.html#content-class_method" title="PinterestDL::Extractors::Meta.content (method)">content</a></span></span><span class='lparen'>(</span><span class='id identifier rubyid_html'>html</span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>og:video</span><span class='tstring_end'>&#39;</span></span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="from_raw_pattern-class_method">
+  
+    .<strong>from_raw_pattern</strong>(html)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+29
+30
+31
+32
+33</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/pinterest_dl/extractors/video.rb', line 29</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_from_raw_pattern'>from_raw_pattern</span><span class='lparen'>(</span><span class='id identifier rubyid_html'>html</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_clean'>clean</span> <span class='op'>=</span> <span class='id identifier rubyid_html'>html</span><span class='period'>.</span><span class='id identifier rubyid_gsub'>gsub</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>\\u002F</span><span class='tstring_end'>&#39;</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>/</span><span class='tstring_end'>&#39;</span></span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_gsub'>gsub</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>\\/</span><span class='tstring_end'>&#39;</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>/</span><span class='tstring_end'>&#39;</span></span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_match'>match</span> <span class='op'>=</span> <span class='id identifier rubyid_clean'>clean</span><span class='period'>.</span><span class='id identifier rubyid_match'>match</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>%r{</span><span class='tstring_content'>https://v\d*\.pinimg\.com/videos/[^&quot;&#39;\s\\&lt;&gt;]+?\.mp4</span><span class='regexp_end'>}</span></span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_match'>match</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_match'>match</span><span class='lbracket'>[</span><span class='int'>0</span><span class='rbracket'>]</span>
 <span class='kw'>end</span></pre>
     </td>
   </tr>
@@ -366,12 +420,12 @@
       <pre class="lines">
 
 
-30
-31
-32</pre>
+35
+36
+37</pre>
     </td>
     <td>
-      <pre class="code"><span class="info file"># File 'lib/pinterest_dl/extractors/video.rb', line 30</span>
+      <pre class="code"><span class="info file"># File 'lib/pinterest_dl/extractors/video.rb', line 35</span>
 
 <span class='kw'>def</span> <span class='id identifier rubyid_unescape'>unescape</span><span class='lparen'>(</span><span class='id identifier rubyid_url'>url</span><span class='rparen'>)</span>
   <span class='id identifier rubyid_url'>url</span><span class='period'>.</span><span class='id identifier rubyid_gsub'>gsub</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>\\u002F</span><span class='tstring_end'>&#39;</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>/</span><span class='tstring_end'>&#39;</span></span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_gsub'>gsub</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_content'>\\</span><span class='tstring_end'>&#39;</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&#39;</span><span class='tstring_end'>&#39;</span></span><span class='rparen'>)</span>
@@ -386,9 +440,9 @@
 </div>
 
       <div id="footer">
-  Generated on Sun Aug 30 20:28:26 2026 by
+  Generated on Tue Oct 13 01:38:23 2026 by
   <a href="https://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
-  0.9.45 (ruby-3.1.2).
+  0.9.45 (ruby-3.2.3).
 </div>
 
     </div>

@@ -7,26 +7,36 @@ require 'openssl'
 
 module PinterestDL
   class Client
+    MAX_REDIRECTS = 5
+
+    attr_reader :last_url
+
     def initialize(config: PinterestDL.config)
       @config = config
       @cache = {}
+      @cookies = Hash.new { |hash, key| hash[key] = {} }
       @last_request_at = nil
+      @last_url = nil
     end
 
     def get(url, headers: {}, use_cache: true)
       cache_key = [url, headers].hash
-      return @cache[cache_key] if use_cache && @cache.key?(cache_key)
+      if use_cache && @cache.key?(cache_key)
+        body, @last_url = @cache[cache_key]
+        return body
+      end
 
-      response = request_with_retries(url, headers: headers)
-      body = handle_response(response, url)
-      @cache[cache_key] = body if use_cache
+      body = fetch(url, headers: headers).body
+      @cache[cache_key] = [body, @last_url] if use_cache
       body
     end
 
     def raw_get(url, headers: {})
-      response = request_with_retries(url, headers: headers)
-      handle_response(response, url, raw: true)
-      response
+      fetch(url, headers: headers)
+    end
+
+    def cookie(name, url = @last_url)
+      @cookies[site_key(URI(url))][name]
     end
 
     def clear_cache
@@ -35,13 +45,32 @@ module PinterestDL
 
     private
 
+    def fetch(url, headers: {})
+      (MAX_REDIRECTS + 1).times do
+        response = request_with_retries(url, headers: headers)
+        save_cookies(response, url)
+
+        unless response.is_a?(Net::HTTPRedirection)
+          check_response(response, url)
+          @last_url = url
+          return response
+        end
+
+        location = response['location']
+        raise PinterestDL::NotFoundError, "Redirected without a location header (#{url})" unless location
+
+        url = URI.join(url, location).to_s
+      end
+      raise PinterestDL::NetworkError, "Too many redirects for #{url}"
+    end
+
     def request_with_retries(url, headers: {})
       attempts = 0
       begin
         throttle!
         uri = URI(url)
         http = build_http(uri)
-        req = Net::HTTP::Get.new(uri, default_headers.merge(headers))
+        req = Net::HTTP::Get.new(uri, default_headers(uri).merge(headers))
         http.request(req)
       rescue Timeout::Error, Errno::ECONNRESET, Errno::ECONNREFUSED,
              SocketError, OpenSSL::SSL::SSLError, EOFError => e
@@ -55,10 +84,10 @@ module PinterestDL
       end
     end
 
-    def handle_response(response, url, raw: false)
+    def check_response(response, url)
       case response
       when Net::HTTPSuccess
-        raw ? response : response.body
+        response
       when Net::HTTPTooManyRequests
         raise PinterestDL::RateLimitError.new(
           "Rate limited while requesting #{url}",
@@ -66,21 +95,11 @@ module PinterestDL
         )
       when Net::HTTPNotFound
         raise PinterestDL::NotFoundError, "Nothing found at #{url}"
-      when Net::HTTPRedirection
-        location = response['location']
-        raise PinterestDL::NotFoundError, "Redirected without a location header (#{url})" unless location
-
-        location = URI.join(url, location).to_s if location.start_with?('/')
-        get_or_raw(location, raw: raw)
       when Net::HTTPForbidden
         raise PinterestDL::RateLimitError, "Request to #{url} was blocked (HTTP 403)"
       else
         raise PinterestDL::NetworkError, "Unexpected response #{response.code} from #{url}"
       end
-    end
-
-    def get_or_raw(url, raw:)
-      raw ? raw_get(url) : get(url)
     end
 
     def build_http(uri)
@@ -91,10 +110,35 @@ module PinterestDL
       http
     end
 
-    def default_headers
-      headers = { 'User-Agent' => @config.user_agent }
-      headers['Cookie'] = @config.cookies if @config.authenticated?
+    def default_headers(uri)
+      headers = {
+        'User-Agent' => @config.user_agent,
+        'Accept-Language' => 'en-US,en;q=0.9'
+      }
+      cookie_line = cookie_header(uri)
+      headers['Cookie'] = cookie_line unless cookie_line.empty?
       headers
+    end
+
+    def cookie_header(uri)
+      parts = []
+      parts << @config.cookies.to_s if @config.authenticated?
+      parts.concat(@cookies[site_key(uri)].map { |name, value| "#{name}=#{value}" })
+      parts.join('; ')
+    end
+
+    def save_cookies(response, url)
+      jar = @cookies[site_key(URI(url))]
+      (response.get_fields('set-cookie') || []).each do |line|
+        name, value = line.split(';').first.to_s.split('=', 2)
+        next if name.nil? || value.nil?
+
+        value.empty? ? jar.delete(name.strip) : jar[name.strip] = value
+      end
+    end
+
+    def site_key(uri)
+      uri.host.to_s.split('.').last(2).join('.')
     end
 
     def throttle!

@@ -30,7 +30,7 @@ class ApiTest < Minitest::Test
     html = <<~HTML
       <meta property="og:image" content="https://i.pinimg.com/originals/wrong/og.jpg">
       <script id="__PWS_DATA__" type="application/json">
-      {"pins":{"1":{"images":{"orig":{"url":"https://i.pinimg.com/originals/correct/data.jpg"}}}}}
+      {"pins":{"123456789":{"id":"123456789","images":{"orig":{"url":"https://i.pinimg.com/originals/correct/data.jpg"}}}}}
       </script>
     HTML
     client = FakeClient.new({ %r{pinterest\.com/pin} => html })
@@ -52,6 +52,57 @@ class ApiTest < Minitest::Test
 
     url = PinterestDL.get_video_url('https://www.pinterest.com/pin/123456789/', client: client)
     assert_equal 'https://v.pinimg.com/videos/mc/720p/clip.mp4', url
+  end
+
+  def test_country_domain_pin_is_fetched_from_www
+    html = '<meta property="og:image" content="https://i.pinimg.com/originals/aa/bb/img.jpg">'
+    client = FakeClient.new({ %r{pinterest\.com/pin} => html })
+
+    PinterestDL.get_image_url('https://de.pinterest.com/pin/174373816821185504/', client: client)
+    assert_equal ['https://www.pinterest.com/pin/174373816821185504/'], client.calls
+  end
+
+  def test_get_image_url_uses_the_requested_pin_not_a_related_one
+    html = <<~HTML
+      <script id="__PWS_DATA__" type="application/json">
+      {"main":{"id":"123","images":{"orig":{"url":"https://i.pinimg.com/originals/main.jpg"}}},
+       "related":[{"id":"999","images":{"orig":{"url":"https://i.pinimg.com/originals/related.jpg"}}}]}
+      </script>
+    HTML
+    client = FakeClient.new({ %r{pinterest\.com/pin} => html })
+
+    url = PinterestDL.get_image_url('https://www.pinterest.com/pin/123/', client: client)
+    assert_equal 'https://i.pinimg.com/originals/main.jpg', url
+  end
+
+  def test_get_video_url_picks_the_best_mp4_over_hls
+    html = <<~HTML
+      <script id="__PWS_DATA__" type="application/json">
+      {"pin":{"id":"5","images":{"orig":{"url":"https://i.pinimg.com/originals/t.jpg"}},
+       "videos":{"video_list":{
+         "V_HLSV3_MOBILE":{"url":"https://v1.pinimg.com/videos/mc/hls/a/b.m3u8"},
+         "V_480P":{"url":"https://v1.pinimg.com/videos/mc/480p/a/b.mp4","width":480,"height":852},
+         "V_720P":{"url":"https://v1.pinimg.com/videos/mc/720p/a/b.mp4","width":720,"height":1280}}}}}
+      </script>
+    HTML
+    client = FakeClient.new({ %r{pinterest\.com/pin} => html })
+
+    url = PinterestDL.get_video_url('https://www.pinterest.com/pin/5/', client: client)
+    assert_equal 'https://v1.pinimg.com/videos/mc/720p/a/b.mp4', url
+  end
+
+  def test_get_video_url_error_mentions_image_pins
+    html = '<meta property="og:image" content="https://i.pinimg.com/originals/aa/bb/img.jpg">'
+    client = FakeClient.new({ %r{pinterest\.com/pin} => html })
+
+    error = assert_raises(PinterestDL::NotFoundError) do
+      PinterestDL.get_video_url('https://www.pinterest.com/pin/123/', client: client)
+    end
+    assert_includes error.message, 'is an image'
+  end
+
+  def test_search_rejects_unknown_type
+    assert_raises(ArgumentError) { PinterestDL.search('cats', type: :gif) }
   end
 
   def test_search_json_returns_pretty_json_string

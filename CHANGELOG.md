@@ -3,7 +3,32 @@
 All notable changes to this project are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
-## [2.0.4]
+## [2.0.5]
+
+### Fixed
+- Pin URLs on country domains (e.g. `de.pinterest.com/pin/...`) didn't download
+  while `pin.it` links did. Pin URLs are now normalised to
+  `www.pinterest.com/pin/ID/`, and the HTTP client follows redirects itself
+  (max 5) with a small cookie jar, so a redirect loop can no longer happen.
+- `Client#raw_get` returned the first redirect response instead of the final
+  one, which lost the session cookie / CSRF token.
+- Pin extraction could pick a related pin instead of the pin you asked for.
+  The pin is now matched by its id.
+- Video pins returned "No video found". The best `.mp4` is picked now (not just
+  the first format, which could be an `.m3u8`), story pins are supported, and
+  `og:video` meta tags are read in any attribute order.
+- `board` never worked: Pinterest needs the real board id, we sent an empty
+  one. The id is now looked up first, the session is created once instead of
+  once per page, links with `?invite_code=...` are parsed correctly, and
+  `pin.it` links work. Sections use `BoardSectionPinsResource`.
+
+### Added
+- `--type all|image|video|pin` for `search` and `board`
+  (`PinterestDL.search(..., type: :video)`, `PinterestDL.board(..., type: :image)`).
+  `pin` prints the pin links (saved to `pins.txt` with `-o`).
+- With `-o` and type `all`, video pins are now saved as videos, not thumbnails.
+
+## [2.0.3]
 
 ### Fixed
 - **`PinterestDL::Board` was broken.** `lib/pinterest_dl/board.rb` accidentally

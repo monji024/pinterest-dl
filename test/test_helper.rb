@@ -2,6 +2,7 @@
 
 $LOAD_PATH.unshift(File.expand_path('../lib', __dir__))
 
+require 'cgi'
 require 'pinterest-dl'
 require 'minitest/autorun'
 
@@ -18,10 +19,11 @@ class FakeClient
     @calls = []
   end
 
-  attr_reader :calls, :last_headers, :last_use_cache
+  attr_reader :calls, :last_headers, :last_use_cache, :last_url
 
   def get(url, headers: {}, use_cache: true)
     @calls << url
+    @last_url = url
     @last_headers = headers
     @last_use_cache = use_cache
     body_for(url)
@@ -29,8 +31,17 @@ class FakeClient
 
   def raw_get(url, headers: {})
     @calls << url
+    @last_url = url
     @last_headers = headers
     FakeResponse.new(body_for(url), headers_for(url))
+  end
+
+  def cookie(name, _url = nil)
+    lines = @raw_headers.values.flat_map { |hdrs| hdrs['set-cookie'] || [] }
+    lines.filter_map do |line|
+      key, value = line.split(';').first.split('=', 2)
+      value if key == name
+    end.last
   end
 
   private

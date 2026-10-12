@@ -7,7 +7,7 @@ module PinterestDL
       module_function
 
       def extract(html)
-        url = from_json_ld(html) || from_open_graph(html) || from_content_url(html)
+        url = from_json_ld(html) || from_open_graph(html) || from_content_url(html) || from_raw_pattern(html)
         return nil unless url
 
         unescape(url)
@@ -18,8 +18,7 @@ module PinterestDL
       end
 
       def from_open_graph(html)
-        match = html.match(/<meta[^>]*property=["']og:video["'][^>]*content=["']([^"']+)["']/)
-        match && match[1]
+        PinterestDL::Extractors::Meta.content(html, 'og:video')
       end
 
       def from_content_url(html)
@@ -27,8 +26,28 @@ module PinterestDL
         match && match[1]
       end
 
+      def from_raw_pattern(html)
+        clean = html.gsub('\\u002F', '/').gsub('\\/', '/')
+        match = clean.match(%r{https://v\d*\.pinimg\.com/videos/[^"'\s\\<>]+?\.mp4})
+        match && match[0]
+      end
+
       def unescape(url)
         url.gsub('\\u002F', '/').gsub('\\', '')
+      end
+    end
+
+    module Meta
+      module_function
+
+      def content(html, key)
+        html.to_s.scan(/<meta\b[^>]*>/i).each do |tag|
+          next unless tag.match?(/(?:property|name)=["']#{Regexp.escape(key)}["']/i)
+
+          match = tag.match(/content=["']([^"']+)["']/i)
+          return match[1] if match
+        end
+        nil
       end
     end
 

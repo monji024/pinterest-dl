@@ -13,7 +13,7 @@ module PinterestDL
       @config = config
     end
 
-    def call(query, limit: 25, pages: 5)
+    def call(query, limit: 25, pages: 5, type: :all)
       results = []
       bookmarks = nil
       pages_fetched = 0
@@ -21,7 +21,7 @@ module PinterestDL
       loop do
         page = fetch_page(query, bookmarks: bookmarks)
         pins = page[:pins]
-        results.concat(pins)
+        results.concat(PinterestDL::MediaType.filter(pins, type))
         bookmarks = page[:bookmarks]
         pages_fetched += 1
 
@@ -129,10 +129,7 @@ module PinterestDL
     end
 
     def first_video_url(raw)
-      video_list = raw.dig('videos', 'video_list')
-      return nil unless video_list
-
-      video_list.values.first&.dig('url')
+      PinterestDL::Extractors::PinData.first_video_url(raw)
     end
 
     def safe_parse(body)

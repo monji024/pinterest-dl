@@ -19,29 +19,29 @@ module PinterestDL
     end
 
     def get_image_url(pin_url, quality: config.quality, client: Client.new(config: config))
-      validate_pin_url!(pin_url)
-      html = client.get(pin_url)
-      url = extract_pin_image(html, quality: quality)
+      html, pin_id = load_pin(pin_url, client)
+      url = extract_pin_image(html, pin_id, quality: quality)
       raise NotFoundError, "No image found at #{pin_url}" unless url
 
       url
     end
 
     def get_video_url(pin_url, client: Client.new(config: config))
-      validate_pin_url!(pin_url)
-      html = client.get(pin_url)
-      url = extract_pin_video(html)
-      raise NotFoundError, "No video found at #{pin_url}" unless url
+      html, pin_id = load_pin(pin_url, client)
+      url = extract_pin_video(html, pin_id)
+      unless url
+        hint = extract_pin_image(html, pin_id, quality: :originals) ? ' (this pin is an image, try the image command)' : ''
+        raise NotFoundError, "No video found at #{pin_url}#{hint}"
+      end
 
       url
     end
 
     def get_media(pin_url, quality: config.quality, client: Client.new(config: config))
-      validate_pin_url!(pin_url)
-      html = client.get(pin_url)
+      html, pin_id = load_pin(pin_url, client)
       {
-        image_url: extract_pin_image(html, quality: quality),
-        video_url: extract_pin_video(html)
+        image_url: extract_pin_image(html, pin_id, quality: quality),
+        video_url: extract_pin_video(html, pin_id)
       }
     end
 
@@ -53,8 +53,10 @@ module PinterestDL
       Downloader.new(config: config).download_batch(urls, dir: dir, filename: filename, &progress)
     end
 
-    def search(query, limit: 25, pages: 5)
-      Search.new(config: config).call(query, limit: limit, pages: pages)
+    def search(query, limit: 25, pages: 5, type: :all)
+      type = MediaType.parse(type)
+      pages = [pages, 15].max unless type == :all
+      Search.new(config: config).call(query, limit: limit, pages: pages, type: type)
     end
 
     def search_json(query, limit: 25)
@@ -62,20 +64,39 @@ module PinterestDL
     end
 
     def search_images(query, limit: 25)
-      search(query, limit: limit).filter_map { |p| p[:image_url] }
+      search(query, limit: limit, type: :image).filter_map { |p| p[:image_url] }
     end
 
     def search_videos(query, limit: 25)
-      search(query, limit: limit).filter_map { |p| p[:video_url] }
+      search(query, limit: limit, type: :video).filter_map { |p| p[:video_url] }
     end
 
-    def board(board_url, limit: 50, pages: 10)
-      Board.new(config: config).call(board_url, limit: limit, pages: pages)
+    def board(board_url, limit: 50, pages: 10, type: :all)
+      type = MediaType.parse(type)
+      pages = [pages, 20].max unless type == :all
+      Board.new(config: config).call(board_url, limit: limit, pages: pages, type: type)
     end
 
     private
-    def extract_pin_image(html, quality:)
-      pin = Extractors::PinData.extract(html)
+
+    def load_pin(pin_url, client)
+      validate_pin_url!(pin_url)
+      html = client.get(normalize_pin_url(pin_url))
+      [html, pin_id_from(client.last_url) || pin_id_from(pin_url)]
+    end
+
+    def normalize_pin_url(pin_url)
+      id = pin_id_from(pin_url)
+      id ? "https://www.pinterest.com/pin/#{id}/" : pin_url
+    end
+
+    def pin_id_from(url)
+      match = url.to_s.match(%r{/pin/(?:[^/?#]*--)?(\d+)})
+      match && match[1]
+    end
+
+    def extract_pin_image(html, pin_id, quality:)
+      pin = Extractors::PinData.extract(html, pin_id)
       url = pin && pin[:image_url]
       url ||= Extractors::Image.extract(html, quality: quality)
       return nil unless url
@@ -83,8 +104,8 @@ module PinterestDL
       Extractors::Image.apply_quality(url, quality)
     end
 
-    def extract_pin_video(html)
-      pin = Extractors::PinData.extract(html)
+    def extract_pin_video(html, pin_id)
+      pin = Extractors::PinData.extract(html, pin_id)
       (pin && pin[:video_url]) || Extractors::Video.extract(html)
     end
 

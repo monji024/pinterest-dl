@@ -5,31 +5,31 @@ require 'uri'
 
 module PinterestDL
   class Board
-    B_URL = 'https://www.pinterest.com/resource/BoardFeedResource/get/'
-
-    BOARD_URL_PATTERN = %r{pinterest\.[a-z.]+/(?<username>[^/]+)/(?<slug>[^/]+)/?(?<section>[^/]+)?/?\z}
+    PAGE_SIZE = 50
 
     def initialize(client: PinterestDL::Client.new, config: PinterestDL.config)
       @client = client
       @config = config
     end
 
-    def call(board_url, limit: 50, pages: 10)
-      match = BOARD_URL_PATTERN.match(board_url)
-      raise PinterestDL::InvalidURLError, "Not a Pinterest board URL: #{board_url}" unless match
+    def call(board_url, limit: 50, pages: 10, type: :all)
+      username, slug, section = parse_url(board_url)
+      start_session(username, slug)
+      board_id = find_board_id(username, slug)
+      resource, options = feed_request(board_id, section)
 
       results = []
       bookmarks = nil
       pages_fetched = 0
 
       loop do
-        page = fetch_page(match, bookmarks: bookmarks)
-        results.concat(page[:pins])
+        page = fetch_page(resource, options, bookmarks)
+        results.concat(PinterestDL::MediaType.filter(page[:pins], type))
         bookmarks = page[:bookmarks]
         pages_fetched += 1
 
         break if results.size >= limit
-        break if bookmarks.nil? || bookmarks.empty? || bookmarks == ['-end-']
+        break if bookmarks.empty? || bookmarks == ['-end-']
         break if pages_fetched >= pages
         break if page[:pins].empty?
       end
@@ -39,70 +39,100 @@ module PinterestDL
 
     private
 
-    def fetch_page(match, bookmarks:)
-      session = establish_session(match)
-      body = @client.get(
-        build_request_url(match, bookmarks),
-        use_cache: false,
-        headers: board_headers(session)
-      )
+    def parse_url(board_url)
+      url = board_url.to_s
+      if url.include?('pin.it/')
+        @client.raw_get(url)
+        url = @client.last_url
+      end
 
-      json = safe_parse(body)
-      raise PinterestDL::NotFoundError, "Board not found: #{match[0]}" unless json
+      uri = URI(url)
+      parts = uri.path.to_s.split('/').reject(&:empty?)
+      valid = uri.host.to_s.include?('pinterest') && [2, 3].include?(parts.size) && parts.first != 'pin'
+      raise PinterestDL::InvalidURLError, "Not a Pinterest board URL: #{board_url}" unless valid
 
-      data_node = json.dig('resource_response', 'data') || []
-      next_bookmarks = json.dig('resource_response', 'bookmark')
-
-      { pins: Array(data_node).filter_map { |r| build_pin(r) }, bookmarks: Array(next_bookmarks) }
+      parts
+    rescue URI::InvalidURIError
+      raise PinterestDL::InvalidURLError, "Not a Pinterest board URL: #{board_url}"
     end
 
-    def establish_session(match)
-      board_path = "/#{match[:username]}/#{match[:slug]}/"
-      board_uri = URI("https://www.pinterest.com#{board_path}")
-      home_response = @client.raw_get(board_uri.to_s)
-      cookies = (home_response.get_fields('set-cookie') || []).map { |c| c.split(';').first }
-
-      { board_path: board_path, board_uri: board_uri, cookies: cookies, csrf: csrf_token(cookies) }
+    def start_session(username, slug)
+      @client.raw_get("https://www.pinterest.com/#{username}/#{slug}/")
+      @page_url = @client.last_url
+      @host = URI(@page_url).host
+      @source_path = URI(@page_url).path
     end
 
-    def csrf_token(cookies)
-      token_cookie = cookies.find { |c| c.start_with?('csrftoken=') }
-      token_cookie ? token_cookie.split('=', 2).last : 'undefined'
+    def find_board_id(username, slug)
+      json = call_resource('BoardResource', username: username, slug: slug, field_set_key: 'detailed')
+      data = json.dig('resource_response', 'data')
+      id = data.is_a?(Hash) && data['id']
+      raise PinterestDL::NotFoundError, "Board not found: #{username}/#{slug} (private boards need --cookies)" unless id
+
+      id
     end
 
-    def build_request_url(match, bookmarks)
-      options = {
-        board_url: "/#{match[:username]}/#{match[:slug]}/",
-        board_id: '',
-        section_slug: match[:section]
-      }.compact
-      options[:bookmarks] = bookmarks if bookmarks && !bookmarks.empty?
+    def feed_request(board_id, section)
+      unless section
+        options = {
+          board_id: board_id,
+          field_set_key: 'react_grid_pin',
+          filter_section_pins: true,
+          sort: 'default',
+          layout: 'default',
+          page_size: PAGE_SIZE,
+          redux_normalize_feed: true
+        }
+        return ['BoardFeedResource', options]
+      end
 
+      ['BoardSectionPinsResource', { section_id: find_section_id(board_id, section), page_size: PAGE_SIZE }]
+    end
+
+    def find_section_id(board_id, slug)
+      json = call_resource('BoardSectionsResource', board_id: board_id)
+      data = json.dig('resource_response', 'data')
+      found = data.is_a?(Array) && data.find { |s| s['slug'] == slug }
+      raise PinterestDL::NotFoundError, "Section not found: #{slug}" unless found
+
+      found['id']
+    end
+
+    def fetch_page(resource, options, bookmarks)
+      options = options.merge(bookmarks: bookmarks) if bookmarks && !bookmarks.empty?
+      json = call_resource(resource, options)
+
+      data = json.dig('resource_response', 'data')
+      pins = data.is_a?(Array) ? data.filter_map { |r| build_pin(r) } : []
+      { pins: pins, bookmarks: Array(json.dig('resource_response', 'bookmark')) }
+    end
+
+    def call_resource(name, options)
       data = { options: options, context: {} }.to_json
-      res_uri = URI(B_URL)
-      res_uri.query = URI.encode_www_form('source_url' => options[:board_url], 'data' => data)
-      res_uri.to_s
+      uri = URI("https://#{@host}/resource/#{name}/get/")
+      uri.query = URI.encode_www_form('source_url' => @source_path, 'data' => data)
+
+      body = @client.get(uri.to_s, use_cache: false, headers: api_headers)
+      JSON.parse(body)
+    rescue JSON::ParserError, TypeError
+      raise PinterestDL::NotFoundError, "Unexpected response from Pinterest (#{name})"
     end
 
-    def board_headers(session)
-      cookie_header = [@config.cookies, session[:cookies].join('; ')].compact.reject(&:empty?).join('; ')
-
+    def api_headers
       {
         'Accept' => 'application/json, text/javascript, */*, q=0.01',
         'X-Requested-With' => 'XMLHttpRequest',
         'X-Pinterest-PWS-Handler' => 'www/[username]/[slug].js',
-        'X-CSRFToken' => session[:csrf],
-        'Referer' => session[:board_uri].to_s,
-        'Cookie' => cookie_header
+        'X-CSRFToken' => @client.cookie('csrftoken', @page_url) || 'undefined',
+        'Referer' => @page_url
       }
     end
 
     def build_pin(raw)
+      return nil unless raw.is_a?(Hash)
+
       id = raw['id']
       return nil unless id
-
-      orig_image = raw.dig('images', 'orig', 'url')
-      video_url = first_video_url(raw)
 
       {
         id: id,
@@ -110,22 +140,9 @@ module PinterestDL
         title: raw['title'] || raw['grid_title'],
         description: raw['description'],
         creator: raw.dig('pinner', 'username') || raw.dig('pinner', 'full_name'),
-        image_url: orig_image,
-        video_url: video_url
+        image_url: raw.dig('images', 'orig', 'url'),
+        video_url: PinterestDL::Extractors::PinData.first_video_url(raw)
       }
-    end
-
-    def first_video_url(raw)
-      video_list = raw.dig('videos', 'video_list')
-      return nil unless video_list
-
-      video_list.values.first&.dig('url')
-    end
-
-    def safe_parse(body)
-      JSON.parse(body)
-    rescue JSON::ParserError, TypeError
-      nil
     end
   end
 end

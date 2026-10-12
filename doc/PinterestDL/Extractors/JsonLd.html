@@ -170,21 +170,21 @@
       <pre class="lines">
 
 
-38
-39
-40
-41
-42
-43
-44
-45
-46
-47
-48
-49</pre>
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68</pre>
     </td>
     <td>
-      <pre class="code"><span class="info file"># File 'lib/pinterest_dl/extractors/video.rb', line 38</span>
+      <pre class="code"><span class="info file"># File 'lib/pinterest_dl/extractors/video.rb', line 57</span>
 
 <span class='kw'>def</span> <span class='id identifier rubyid_content_url'>content_url</span><span class='lparen'>(</span><span class='id identifier rubyid_html'>html</span><span class='comma'>,</span> <span class='id identifier rubyid_type'>type</span><span class='rparen'>)</span>
   <span class='id identifier rubyid_html'>html</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_scan'>scan</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>%r{</span><span class='tstring_content'>&lt;script[^&gt;]*type=[&quot;&#39;]application/ld\+json[&quot;&#39;][^&gt;]*&gt;(.*?)&lt;/script&gt;</span><span class='regexp_end'>}m</span></span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_each'>each</span> <span class='kw'>do</span> <span class='op'>|</span><span class='lparen'>(</span><span class='id identifier rubyid_raw'>raw</span><span class='rparen'>)</span><span class='op'>|</span>
@@ -218,14 +218,14 @@
       <pre class="lines">
 
 
-51
-52
-53
-54
-55</pre>
+70
+71
+72
+73
+74</pre>
     </td>
     <td>
-      <pre class="code"><span class="info file"># File 'lib/pinterest_dl/extractors/video.rb', line 51</span>
+      <pre class="code"><span class="info file"># File 'lib/pinterest_dl/extractors/video.rb', line 70</span>
 
 <span class='kw'>def</span> <span class='id identifier rubyid_safe_parse'>safe_parse</span><span class='lparen'>(</span><span class='id identifier rubyid_raw'>raw</span><span class='rparen'>)</span>
   <span class='const'>JSON</span><span class='period'>.</span><span class='id identifier rubyid_parse'>parse</span><span class='lparen'>(</span><span class='id identifier rubyid_raw'>raw</span><span class='rparen'>)</span>
@@ -242,9 +242,9 @@
 </div>
 
       <div id="footer">
-  Generated on Sun Aug 30 20:28:26 2026 by
+  Generated on Tue Oct 13 01:38:23 2026 by
   <a href="https://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
-  0.9.45 (ruby-3.1.2).
+  0.9.45 (ruby-3.2.3).
 </div>
 
     </div>

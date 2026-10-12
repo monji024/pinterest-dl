@@ -182,9 +182,12 @@ pinterest-dl video https://www.pinterest.com/pin/example/ -o pin.mp4
 pinterest-dl search &quot;cyberpunk city&quot; -n 20
 pinterest-dl search &quot;cyberpunk city&quot; -n 20 -o ./downloads
 pinterest-dl board https://www.pinterest.com/username/board-name/ -n 50 -o ./downloads
+pinterest-dl board https://www.pinterest.com/username/board-name/ -t video -o ./videos
+pinterest-dl search &quot;cats&quot; -t image -n 30 -o ./images
+pinterest-dl search &quot;cats&quot; -t pin -n 30
 pinterest-dl --help
 </code></pre>
-<p>Flags: <code>-o/--output</code>, <code>-n/--limit</code>, <code>-q/--quality</code>, <code>-c/--cookies</code>, <code>-v/--verbose</code>.</p>
+<p>Flags: <code>-o/--output</code>, <code>-n/--limit</code>, <code>-t/--type</code> (<code>all</code>, <code>image</code>, <code>video</code>, <code>pin</code>), <code>-q/--quality</code>, <code>-c/--cookies</code>, <code>-v/--verbose</code>.</p>
 <h2 id="Development">Development</h2>
 <pre class="code bash"><code class="bash">bundle install
 bundle exec rake test     # run the test suite
@@ -202,9 +205,9 @@ bundle exec rake          # both (default task)
 <p>WTFPL © <a href="https://github.com/monji024">monji024</a></p></div></div>
 
       <div id="footer">
-  Generated on Sun Aug 30 20:28:25 2026 by
+  Generated on Tue Oct 13 01:38:22 2026 by
   <a href="https://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
-  0.9.45 (ruby-3.1.2).
+  0.9.45 (ruby-3.2.3).
 </div>
 
     </div>

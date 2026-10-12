@@ -4,6 +4,7 @@
 
 [![Gem Version](https://img.shields.io/gem/v/pinterest-dl)](https://rubygems.org/gems/pinterest-dl)  
 [![Gem Downloads](https://img.shields.io/gem/dt/pinterest-dl)](https://rubygems.org/gems/pinterest-dl)  
+[![CI](https://github.com/monji024/pinterest-dl/actions/workflows/ci.yml/badge.svg)](https://github.com/monji024/pinterest-dl/actions/workflows/ci.yml)  
 [![License](https://img.shields.io/badge/License-WTFPL-blue)](LICENSE)  
 [![Ruby](https://img.shields.io/badge/Ruby-2.7+-red)](https://www.ruby-lang.org/)  
 <img src="https://img.icons8.com/color/96/000000/pinterest--v1.png" width="80">
@@ -159,10 +160,13 @@ pinterest-dl video https://www.pinterest.com/pin/example/ -o pin.mp4
 pinterest-dl search "cyberpunk city" -n 20
 pinterest-dl search "cyberpunk city" -n 20 -o ./downloads
 pinterest-dl board https://www.pinterest.com/username/board-name/ -n 50 -o ./downloads
+pinterest-dl board https://www.pinterest.com/username/board-name/ -t video -o ./videos
+pinterest-dl search "cats" -t image -n 30 -o ./images
+pinterest-dl search "cats" -t pin -n 30
 pinterest-dl --help
 ```
 
-Flags: `-o/--output`, `-n/--limit`, `-q/--quality`, `-c/--cookies`, `-v/--verbose`.
+Flags: `-o/--output`, `-n/--limit`, `-t/--type` (`all`, `image`, `video`, `pin`), `-q/--quality`, `-c/--cookies`, `-v/--verbose`.
 
 
 ## Development

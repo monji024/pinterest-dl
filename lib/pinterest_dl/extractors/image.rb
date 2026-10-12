@@ -25,8 +25,7 @@ module PinterestDL
       end
 
       def from_open_graph(html)
-        match = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/)
-        match && match[1]
+        PinterestDL::Extractors::Meta.content(html, 'og:image')
       end
 
       def from_raw_pattern(html)
