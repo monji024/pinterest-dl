@@ -14,8 +14,8 @@ module PinterestDL
 
     def call(board_url, limit: 50, pages: 10, type: :all)
       username, slug, section = parse_url(board_url)
-      start_session(username, slug)
-      board_id = find_board_id(username, slug)
+      html = start_session(username, slug)
+      board_id = board_id_from_page(html, slug) || find_board_id(username, slug)
       resource, options = feed_request(board_id, section)
 
       results = []
@@ -57,10 +57,34 @@ module PinterestDL
     end
 
     def start_session(username, slug)
-      @client.raw_get("https://www.pinterest.com/#{username}/#{slug}/")
+      response = @client.raw_get("https://www.pinterest.com/#{username}/#{slug}/")
       @page_url = @client.last_url
       @host = URI(@page_url).host
       @source_path = URI(@page_url).path
+      response.body
+    end
+
+    def board_id_from_page(html, slug)
+      html.to_s.scan(PinterestDL::Extractors::PinData::SCRIPT_PATTERN).each do |(raw)|
+        data = PinterestDL::Extractors::PinData.safe_parse(raw)
+        stack = [data]
+        until stack.empty?
+          node = stack.pop
+          case node
+          when Hash
+            return node['id'].to_s if board_node?(node, slug)
+
+            stack.concat(node.values)
+          when Array
+            stack.concat(node)
+          end
+        end
+      end
+      nil
+    end
+
+    def board_node?(node, slug)
+      node['type'] == 'board' && node['id'].to_s.match?(/\A\d+\z/) && node['url'].to_s.include?("/#{slug}/")
     end
 
     def find_board_id(username, slug)
@@ -130,6 +154,7 @@ module PinterestDL
 
     def build_pin(raw)
       return nil unless raw.is_a?(Hash)
+      return nil if raw['type'] && raw['type'] != 'pin'
 
       id = raw['id']
       return nil unless id

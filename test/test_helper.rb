@@ -49,6 +49,7 @@ class FakeClient
   def body_for(url)
     @responses.each do |key, body|
       matched = key.is_a?(Regexp) ? key.match?(url) : key == url
+      body = body.size > 1 ? body.shift : body.first if body.is_a?(Array)
       return body.is_a?(Proc) ? body.call(url) : body if matched
     end
     raise "FakeClient: no stubbed response for #{url}"

@@ -49,9 +49,6 @@ module PinterestDL
 
       parse_search_response(json)
     end
-
-    # Pinterest's search resource requires a session cookie + CSRF token
-    # obtained by first loading the human-facing search page.
     def establish_session(query)
       source_path = "/search/pins/?q=#{URI.encode_www_form_component(query)}"
       home_uri = URI("https://www.pinterest.com#{source_path}")

@@ -5,17 +5,26 @@ require 'json'
 module PinterestDL
   module Extractors
     module PinData
-      SCRIPT_PATTERN = %r{<script[^>]*id=["']__PWS_DATA__["'][^>]*>(.*?)</script>}m.freeze
+      SCRIPT_PATTERN = %r{<script[^>]*id=["']__PWS_[A-Z_]+__["'][^>]*>(.*?)</script>}m.freeze
 
       module_function
 
       def extract(html, pin_id = nil)
-        data = parse_embedded_json(html)
-        return nil unless data
+        found = nil
+        html.to_s.scan(SCRIPT_PATTERN).each do |(raw)|
+          data = safe_parse(raw)
+          pin = data && find_pin_node(data, pin_id)
+          next unless pin
 
-        pin = find_pin_node(data, pin_id)
-        return nil unless pin
+          result = build_result(pin)
+          return result if result[:video_url]
 
+          found ||= result
+        end
+        found
+      end
+
+      def build_result(pin)
         {
           image_url: pin.dig('images', 'orig', 'url'),
           video_url: first_video_url(pin),
@@ -76,7 +85,15 @@ module PinterestDL
         return best['url'] if best
 
         hls = formats.find { |v| v['url'].include?('.m3u8') }
-        hls && hls['url'].sub('/hls/', '/720p/').sub(/\.m3u8.*\z/, '.mp4')
+        hls && hls_to_mp4(hls['url'])
+      end
+
+      def hls_to_mp4(url)
+        if url.include?('/iht/hls/')
+          url.sub('/hls/', '/expMp4/').sub(/\.m3u8.*\z/, '_720w.mp4')
+        else
+          url.sub('/hls/', '/720p/').sub(/\.m3u8.*\z/, '.mp4')
+        end
       end
 
       def deep_find(node, key)

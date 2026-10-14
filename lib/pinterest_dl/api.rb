@@ -21,20 +21,25 @@ module PinterestDL
     def get_image_url(pin_url, quality: config.quality, client: Client.new(config: config))
       html, pin_id = load_pin(pin_url, client)
       url = extract_pin_image(html, pin_id, quality: quality)
+      url ||= api_image_url(pin_id, client, quality)
       raise NotFoundError, "No image found at #{pin_url}" unless url
 
       url
     end
 
     def get_video_url(pin_url, client: Client.new(config: config))
-      html, pin_id = load_pin(pin_url, client)
-      url = extract_pin_video(html, pin_id)
-      unless url
-        hint = extract_pin_image(html, pin_id, quality: :originals) ? ' (this pin is an image, try the image command)' : ''
-        raise NotFoundError, "No video found at #{pin_url}#{hint}"
+      pin = nil
+      3.times do |attempt|
+        html, pin_id = load_pin(pin_url, client, fresh: attempt.positive?)
+        url = extract_pin_video(html, pin_id)
+        return url if url
+
+        pin = pin_from_api(pin_id, client)
+        return pin[:video_url] if pin && pin[:video_url]
       end
 
-      url
+      hint = pin && pin[:image_url] ? ' (it looks like an image pin, try the image command)' : ''
+      raise NotFoundError, "No video found at #{pin_url}#{hint}"
     end
 
     def get_media(pin_url, quality: config.quality, client: Client.new(config: config))
@@ -79,10 +84,40 @@ module PinterestDL
 
     private
 
-    def load_pin(pin_url, client)
+    def load_pin(pin_url, client, fresh: false)
       validate_pin_url!(pin_url)
-      html = client.get(normalize_pin_url(pin_url))
-      [html, pin_id_from(client.last_url) || pin_id_from(pin_url)]
+      html = client.get(normalize_pin_url(pin_url), use_cache: !fresh)
+      id = pin_id_from(client.last_url) || pin_id_from(pin_url) || html.to_s[%r{pinterest\.[a-z.]+/pin/(\d+)}, 1]
+      [html, id]
+    end
+
+    def pin_from_api(pin_id, client)
+      return nil unless pin_id
+
+      data = { options: { id: pin_id, field_set_key: 'detailed' }, context: {} }.to_json
+      uri = URI('https://www.pinterest.com/resource/PinResource/get/')
+      uri.query = URI.encode_www_form('source_url' => "/pin/#{pin_id}/", 'data' => data)
+      headers = {
+        'Accept' => 'application/json, text/javascript, */*, q=0.01',
+        'X-Requested-With' => 'XMLHttpRequest',
+        'X-Pinterest-PWS-Handler' => 'www/pin/[id].js',
+        'X-Pinterest-Source-Url' => "/pin/#{pin_id}/",
+        'X-CSRFToken' => client.cookie('csrftoken') || 'undefined',
+        'Referer' => "https://www.pinterest.com/pin/#{pin_id}/"
+      }
+
+      pin = JSON.parse(client.get(uri.to_s, headers: headers, use_cache: false)).dig('resource_response', 'data')
+      return nil unless pin.is_a?(Hash)
+
+      { image_url: pin.dig('images', 'orig', 'url'), video_url: Extractors::PinData.first_video_url(pin) }
+    rescue PinterestDL::Error, JSON::ParserError => e
+      logger.debug("PinResource failed for pin #{pin_id}: #{e.message}")
+      nil
+    end
+
+    def api_image_url(pin_id, client, quality)
+      url = pin_from_api(pin_id, client)&.dig(:image_url)
+      url && Extractors::Image.apply_quality(url, quality)
     end
 
     def normalize_pin_url(pin_url)

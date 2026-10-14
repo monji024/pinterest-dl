@@ -3,7 +3,7 @@
 All notable changes to this project are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
-## [2.0.5]
+## [2.1.5]
 
 ### Fixed
 - Pin URLs on country domains (e.g. `de.pinterest.com/pin/...`) didn't download
@@ -17,6 +17,14 @@ This project follows [Semantic Versioning](https://semver.org/).
 - Video pins returned "No video found". The best `.mp4` is picked now (not just
   the first format, which could be an `.m3u8`), story pins are supported, and
   `og:video` meta tags are read in any attribute order.
+- `video` worked only some of the time: Pinterest sometimes serves a lighter
+  page without the video data. Now every `__PWS_*__` data block of the page is
+  read, then the pin is asked from the `PinResource` API (with the
+  `X-Pinterest-PWS-Handler` header Pinterest needs, otherwise it answers 403),
+  and the page is fetched fresh up to 3 times before giving up. The "this is an
+  image" hint only shows when Pinterest really returned an image pin.
+- `board` reads the board id from the page first and only asks the API when it
+  isn't there. Story modules ("Related interests") are no longer treated as pins.
 - `board` never worked: Pinterest needs the real board id, we sent an empty
   one. The id is now looked up first, the session is created once instead of
   once per page, links with `?invite_code=...` are parsed correctly, and

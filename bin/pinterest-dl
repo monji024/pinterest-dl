@@ -19,7 +19,6 @@ def usage
       -t, --type TYPE     What to collect in search/board: all, image, video, pin (default all)
       -q, --quality Q     Image quality: originals, 736x, 474x, 236x (default originals)
       -c, --cookies STR   Cookie string for authenticated requests
-      -v, --verbose       Print debug logging
       -h, --help          Show this help
   USAGE
 end
@@ -31,7 +30,6 @@ parser = OptionParser.new do |opts|
   opts.on('-t T', '--type T') { |v| options[:type] = v.to_sym }
   opts.on('-q Q', '--quality Q') { |v| options[:quality] = v.to_sym }
   opts.on('-c STR', '--cookies STR') { |v| options[:cookies] = v }
-  opts.on('-v', '--verbose') { options[:verbose] = true }
   opts.on('-h', '--help') do
     puts usage
     exit 0

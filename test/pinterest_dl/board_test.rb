@@ -92,4 +92,24 @@ class BoardTest < Minitest::Test
 
     assert_equal ['1'], pins.map { |p| p[:id] }
   end
+
+  def test_board_id_is_read_from_the_page_without_extra_request
+    page = '<script id="__PWS_DATA__" type="application/json">{"b":{"type":"board","id":"555","url":"/someuser/someboard/"}}</script>'
+    client = FakeClient.new({ BOARD_PAGE => page, %r{BoardFeedResource} => feed_json([pin_json('1')]) })
+    board = PinterestDL::Board.new(client: client, config: PinterestDL::Configuration.new)
+
+    board.call('https://www.pinterest.com/someuser/someboard/')
+
+    assert(client.calls.none? { |u| u.include?('BoardResource') })
+    assert_includes CGI.unescape(client.calls.find { |u| u.include?('BoardFeedResource') }), '"board_id":"555"'
+  end
+
+  def test_story_items_are_not_pins
+    story = { id: '9', type: 'story', title: { text: 'Related interests' } }
+    board, = build_board(feed_json([story, pin_json('1').merge(type: 'pin')]))
+
+    pins = board.call('https://www.pinterest.com/someuser/someboard/')
+
+    assert_equal ['1'], pins.map { |p| p[:id] }
+  end
 end
