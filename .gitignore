@@ -1,0 +1,9 @@
+/*.gem
+/.bundle/
+/.yardoc/
+/coverage/
+/doc/
+/pkg/
+/tmp/
+/vendor/
+/project_code.txt
