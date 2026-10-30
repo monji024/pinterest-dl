@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Monji024
+
 require_relative '../test_helper'
 
 class ApiTest < Minitest::Test
