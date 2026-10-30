@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Monji024
+
 module PinterestDL
   class ProgressBar
     def initialize(total:, width: 30, out: $stdout)
