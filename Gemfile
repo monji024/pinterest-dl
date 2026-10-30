@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Monji024
-
 source 'https://rubygems.org'
 
 gemspec
