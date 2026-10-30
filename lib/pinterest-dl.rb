@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Monji024
+
 require 'json'
 require_relative 'pinterest_dl/version'
 require_relative 'pinterest_dl/errors'
