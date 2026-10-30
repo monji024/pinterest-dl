@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Monji024
+
 module PinterestDL
   module MediaType
     TYPES = %i[all image video pin].freeze
