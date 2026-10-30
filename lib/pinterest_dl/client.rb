@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Monji024
+
 require 'net/http'
 require 'uri'
 require 'openssl'
