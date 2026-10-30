@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Monji024
+
 module PinterestDL
   PIN_URL_PATTERN = %r{(pinterest\.[a-z.]+/pin/|pin\.it/)}i.freeze
 
