@@ -96,6 +96,8 @@ module PinterestDL
           "Rate limited while requesting #{url}",
           retry_after: response['Retry-After']
         )
+      when Net::HTTPUnauthorized
+        raise PinterestDL::AuthenticationError, "Authentication required for #{url}"
       when Net::HTTPNotFound
         raise PinterestDL::NotFoundError, "Nothing found at #{url}"
       when Net::HTTPForbidden
