@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module PinterestDL
   module MediaType
     TYPES = %i[all image video pin].freeze
@@ -8,8 +7,8 @@ module PinterestDL
     module_function
 
     def parse(value)
-      type = (value || :all).to_sym
-      return type if TYPES.include?(type)
+      normalized = value.nil? || value.to_s.strip.empty? ? :all : value.to_s.strip.downcase.to_sym
+      return normalized if TYPES.include?(normalized)
 
       raise ArgumentError, "type must be one of: #{TYPES.join(', ')}"
     end
