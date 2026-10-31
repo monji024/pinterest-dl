@@ -17,6 +17,10 @@ module PinterestDL
     attr_reader :quality
 
     def initialize
+      reset!
+    end
+
+    def reset!
       @user_agent = DEFAULT_USER_AGENT
       @cookies = nil
       @open_timeout = 10
@@ -25,10 +29,8 @@ module PinterestDL
       @retry_wait = 1.0
       @quality = :originals
       @rate_limit_interval = 0.0
-      @logger = Logger.new($stdout).tap do |log|
-        log.level = Logger::WARN
-        log.formatter = proc { |severity, _time, _progname, msg| "[pinterest-dl] #{severity}: #{msg}\n" }
-      end
+      @logger = default_logger
+      self
     end
 
     def quality=(value)
@@ -41,6 +43,15 @@ module PinterestDL
 
     def authenticated?
       !cookies.nil? && !cookies.to_s.strip.empty?
+    end
+
+    private
+
+    def default_logger
+      Logger.new($stdout).tap do |log|
+        log.level = Logger::WARN
+        log.formatter = proc { |severity, _time, _progname, msg| "[pinterest-dl] #{severity}: #{msg}\n" }
+      end
     end
   end
 end
