@@ -40,7 +40,7 @@ module PinterestDL
     end
 
     def authenticated?
-      !cookies.nil? && !cookies.to_s.empty?
+      !cookies.nil? && !cookies.to_s.strip.empty?
     end
   end
 end
