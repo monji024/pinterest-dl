@@ -141,7 +141,10 @@ module PinterestDL
     end
 
     def site_key(uri)
-      uri.host.to_s.split('.').last(2).join('.')
+      host = uri.host.to_s.downcase
+      return 'pinterest.com' if host.include?('pinterest.')
+
+      host.split('.').last(2).join('.')
     end
 
     def throttle!
