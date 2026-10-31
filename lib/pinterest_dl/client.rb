@@ -36,7 +36,10 @@ module PinterestDL
     end
 
     def cookie(name, url = @last_url)
-      @cookies[site_key(URI(url))][name]
+      target = url.to_s.empty? ? 'https://www.pinterest.com' : url.to_s
+      @cookies[site_key(URI(target))][name]
+    rescue URI::InvalidURIError
+      nil
     end
 
     def clear_cache
