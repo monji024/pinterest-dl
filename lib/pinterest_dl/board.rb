@@ -146,10 +146,13 @@ module PinterestDL
     end
 
     def api_headers
+      handler = @section ? 'www/[username]/[slug]/[section_slug].js' : 'www/[username]/[slug].js'
       {
         'Accept' => 'application/json, text/javascript, */*, q=0.01',
         'X-Requested-With' => 'XMLHttpRequest',
-        'X-Pinterest-PWS-Handler' => 'www/[username]/[slug].js',
+        'X-Pinterest-AppState' => 'active',
+        'X-Pinterest-Source-Url' => @source_path,
+        'X-Pinterest-PWS-Handler' => handler,
         'X-CSRFToken' => @client.cookie('csrftoken', @page_url) || 'undefined',
         'Referer' => @page_url
       }
