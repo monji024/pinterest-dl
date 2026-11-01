@@ -17,27 +17,42 @@ module PinterestDL
       raise ArgumentError, 'query must not be empty' if query.to_s.strip.empty?
 
       session = establish_session(query)
+      results = collect_pages(session, query, limit: limit, pages: pages, type: type)
+      if results.empty?
+        fallback = PinterestDL::Extractors::PinData.extract_pins(session[:html], quality: @config.quality)
+        results = PinterestDL::MediaType.filter(fallback, type)
+      end
+      results.first(limit)
+    end
+
+    private
+
+    def collect_pages(session, query, limit:, pages:, type:)
       results = []
+      seen = {}
       bookmarks = nil
       pages_fetched = 0
 
       loop do
         page = fetch_page(session, query, bookmarks: bookmarks)
-        pins = page[:pins]
-        results.concat(PinterestDL::MediaType.filter(pins, type))
+        PinterestDL::MediaType.filter(page[:pins], type).each do |pin|
+          next if seen[pin[:id]]
+
+          seen[pin[:id]] = true
+          results << pin
+        end
         bookmarks = page[:bookmarks]
         pages_fetched += 1
 
-        break if results.size >= limit
-        break if bookmarks.nil? || bookmarks.empty? || bookmarks == ['-end-']
-        break if pages_fetched >= pages
-        break if pins.empty?
+        break if results.size >= limit || stop_pagination?(bookmarks, pages_fetched, pages, page[:pins])
       end
 
-      results.first(limit)
+      results
     end
 
-    private
+    def stop_pagination?(bookmarks, pages_fetched, max_pages, pins)
+      bookmarks.nil? || bookmarks.empty? || bookmarks == ['-end-'] || pages_fetched >= max_pages || pins.empty?
+    end
 
     def fetch_page(session, query, bookmarks: nil)
       body = @client.get(
@@ -51,13 +66,21 @@ module PinterestDL
 
       parse_search_response(json)
     end
+
     def establish_session(query)
       source_path = "/search/pins/?q=#{URI.encode_www_form_component(query)}"
       home_uri = URI("https://www.pinterest.com#{source_path}")
       home_response = @client.raw_get(home_uri.to_s)
       cookies = (home_response.get_fields('set-cookie') || []).map { |c| c.split(';').first }
+      csrf = @client.cookie('csrftoken', home_uri.to_s) || csrf_token(cookies)
 
-      { source_path: source_path, home_uri: home_uri, cookies: cookies, csrf: csrf_token(cookies) }
+      {
+        source_path: source_path,
+        home_uri: home_uri,
+        cookies: cookies,
+        csrf: csrf,
+        html: home_response.body
+      }
     end
 
     def csrf_token(cookies)
@@ -77,58 +100,35 @@ module PinterestDL
 
     def search_headers(session)
       cookie_header = [@config.cookies, session[:cookies].join('; ')].compact.reject(&:empty?).join('; ')
-
-      {
+      headers = {
         'Accept' => 'application/json, text/javascript, */*, q=0.01',
         'X-Requested-With' => 'XMLHttpRequest',
+        'X-Pinterest-AppState' => 'active',
+        'X-Pinterest-Source-Url' => session[:source_path],
         'X-Pinterest-PWS-Handler' => 'www/search/[scope].js',
         'X-CSRFToken' => session[:csrf],
-        'Referer' => session[:home_uri].to_s,
-        'Cookie' => cookie_header
+        'Referer' => session[:home_uri].to_s
       }
+      headers['Cookie'] = cookie_header unless cookie_header.empty?
+      headers
     end
 
     def parse_search_response(json)
-      data_node = json.dig('resource_response', 'data') || {}
-      raw_results = data_node['results'] || []
+      data_node = json.dig('resource_response', 'data')
+      raw_results =
+        case data_node
+        when Array then data_node
+        when Hash then data_node['results'] || []
+        else []
+        end
       next_bookmarks = json.dig('resource_response', 'bookmark') ||
-                        json.dig('resource', 'options', 'bookmarks')
+                       json.dig('resource', 'options', 'bookmarks')
 
       { pins: raw_results.filter_map { |r| build_pin(r) }, bookmarks: Array(next_bookmarks) }
     end
 
     def build_pin(raw)
-      id = raw['id']
-      return nil unless id
-
-      {
-        id: id,
-        pin_url: "https://www.pinterest.com/pin/#{id}/",
-        title: raw['title'] || raw['grid_title'],
-        description: raw['description'],
-        creator: pin_creator(raw),
-        image_url: pin_image_url(raw),
-        video_url: first_video_url(raw)
-      }
-    end
-
-    def pin_creator(raw)
-      raw.dig('pinner', 'username') || raw.dig('pinner', 'full_name')
-    end
-
-    def pin_image_url(raw)
-      raw.dig('images', 'orig', 'url') || fallback_image_url(raw)
-    end
-
-    def fallback_image_url(raw)
-      images = raw['images']
-      return nil unless images
-
-      images.values.filter_map { |v| v['url'] if v.is_a?(Hash) }.last
-    end
-
-    def first_video_url(raw)
-      PinterestDL::Extractors::PinData.first_video_url(raw)
+      PinterestDL::Extractors::PinData.build_pin_hash(raw, quality: @config.quality)
     end
 
     def safe_parse(body)
