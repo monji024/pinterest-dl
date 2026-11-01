@@ -138,7 +138,7 @@ module PinterestDL
         name, value = line.split(';').first.to_s.split('=', 2)
         next if name.nil? || value.nil?
 
-        value.empty? ? jar.delete(name.strip) : jar[name.strip] = value
+        value.strip.empty? ? jar.delete(name.strip) : jar[name.strip] = value.strip
       end
     end
 
