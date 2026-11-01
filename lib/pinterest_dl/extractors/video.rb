@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module PinterestDL
   module Extractors
     module Video
@@ -27,13 +26,13 @@ module PinterestDL
       end
 
       def from_raw_pattern(html)
-        clean = html.to_s.gsub('\u002F', '/').gsub('\/', '/')
+        clean = html.to_s.gsub('\\u002F', '/').gsub('\\/', '/')
         match = clean.match(%r{https://v\d*\.pinimg\.com/videos/[^"'\s\\<>]+?\.mp4})
         match && match[0]
       end
 
       def unescape(url)
-        url.gsub('\\u002F', '/').gsub('\\', '')
+        url.to_s.gsub('\\u002F', '/').gsub('\\', '')
       end
     end
 
@@ -56,13 +55,24 @@ module PinterestDL
 
       def content_url(html, type)
         html.to_s.scan(%r{<script[^>]*type=["']application/ld\+json["'][^>]*>(.*?)</script>}m).each do |(raw)|
-          data = safe_parse(raw)
-          next unless data
+          found = find_type_url(safe_parse(raw), type)
+          return found if found
+        end
+        nil
+      end
 
-          data = data[0] if data.is_a?(Array) && !data.empty?
-          next unless data.is_a?(Hash)
+      def find_type_url(node, type)
+        stack = [node]
+        until stack.empty?
+          current = stack.pop
+          case current
+          when Hash
+            return current['contentUrl'] if current['@type'] == type && current['contentUrl']
 
-          return data['contentUrl'] if data['@type'] == type && data['contentUrl']
+            stack.concat(current.values)
+          when Array
+            stack.concat(current)
+          end
         end
         nil
       end
