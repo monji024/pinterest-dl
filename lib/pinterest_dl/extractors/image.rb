@@ -29,7 +29,7 @@ module PinterestDL
       end
 
       def from_raw_pattern(html)
-        match = html.match(
+        match = html.to_s.match(
           %r{https://i\.pinimg\.com/(?:originals|736x|474x|236x)/[A-Za-z0-9_\-/]+\.(?:jpg|jpeg|png|gif|webp)}i
         )
         match && match[0]
