@@ -6,6 +6,7 @@ require 'uri'
 module PinterestDL
   class Board
     PAGE_SIZE = 50
+    RESERVED_PATHS = %w[pin search ideas today settings business].freeze
 
     def initialize(client: PinterestDL::Client.new, config: PinterestDL.config)
       @client = client
@@ -48,7 +49,8 @@ module PinterestDL
 
       uri = URI(url)
       parts = uri.path.to_s.split('/').reject(&:empty?)
-      valid = uri.host.to_s.include?('pinterest') && [2, 3].include?(parts.size) && parts.first != 'pin'
+      valid = uri.host.to_s.include?('pinterest') && [2, 3].include?(parts.size) &&
+              !RESERVED_PATHS.include?(parts.first.to_s.downcase)
       raise PinterestDL::InvalidURLError, "Not a Pinterest board URL: #{board_url}" unless valid
 
       parts
