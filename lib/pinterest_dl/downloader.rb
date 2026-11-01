@@ -10,7 +10,8 @@ module PinterestDL
     end
 
     def download(url, path:)
-      raise ArgumentError, 'url must not be nil/empty' if url.to_s.empty?
+      raise ArgumentError, 'url must not be nil/empty' if url.to_s.strip.empty?
+      raise ArgumentError, 'path must not be nil/empty' if path.to_s.strip.empty?
 
       FileUtils.mkdir_p(File.dirname(path))
       response = @client.raw_get(url)
