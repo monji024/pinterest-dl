@@ -30,7 +30,8 @@ module PinterestDL
           image_url: best_image_url(pin),
           video_url: first_video_url(pin),
           title: pin['title'] || pin['grid_title'],
-          description: pin['description']
+            description: pin['description'],
+            creator: pin.dig('pinner', 'username') || pin.dig('pinner', 'full_name')
         }
       end
 
