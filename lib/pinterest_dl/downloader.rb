@@ -48,8 +48,8 @@ module PinterestDL
     private
 
     def default_filename(url, index)
-      ext = File.extname(URI(url).path)
-      ext = '.jpg' if ext.nil? || ext.empty?
+      ext = File.extname(URI(url).path.to_s)[/\A\.[A-Za-z0-9]{2,5}\z/]
+      ext ||= '.jpg'
       format('%<index>04d%<ext>s', index: index + 1, ext: ext)
     rescue URI::InvalidURIError
       format('%<index>04d.jpg', index: index + 1)
