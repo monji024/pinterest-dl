@@ -36,7 +36,7 @@ module PinterestDL
       end
 
       def apply_quality(url, quality)
-        return url unless url.include?('i.pinimg.com')
+        return url unless url.to_s.include?('i.pinimg.com')
 
         target = QUALITY_PATH[quality.to_sym]
         return url unless target
