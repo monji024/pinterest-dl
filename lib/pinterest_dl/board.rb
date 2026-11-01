@@ -18,27 +18,42 @@ module PinterestDL
       html = start_session(username, slug)
       board_id = board_id_from_page(html, slug) || find_board_id(username, slug)
       resource, options = feed_request(board_id, section)
+      results = collect_pins(resource, options, limit: limit, pages: pages, type: type)
+      if results.empty?
+        fallback = PinterestDL::Extractors::PinData.extract_pins(html, quality: @config.quality)
+        results = PinterestDL::MediaType.filter(fallback, type)
+      end
+      results.first(limit)
+    end
 
+    private
+
+    def collect_pins(resource, options, limit:, pages:, type:)
       results = []
+      seen = {}
       bookmarks = nil
       pages_fetched = 0
 
       loop do
         page = fetch_page(resource, options, bookmarks)
-        results.concat(PinterestDL::MediaType.filter(page[:pins], type))
+        PinterestDL::MediaType.filter(page[:pins], type).each do |pin|
+          next if seen[pin[:id]]
+
+          seen[pin[:id]] = true
+          results << pin
+        end
         bookmarks = page[:bookmarks]
         pages_fetched += 1
 
-        break if results.size >= limit
-        break if bookmarks.empty? || bookmarks == ['-end-']
-        break if pages_fetched >= pages
-        break if page[:pins].empty?
+        break if results.size >= limit || stop_pagination?(bookmarks, pages_fetched, pages, page[:pins])
       end
 
-      results.first(limit)
+      results
     end
 
-    private
+    def stop_pagination?(bookmarks, pages_fetched, max_pages, pins)
+      bookmarks.empty? || bookmarks == ['-end-'] || pages_fetched >= max_pages || pins.empty?
+    end
 
     def parse_url(board_url)
       url = board_url.to_s
@@ -59,10 +74,11 @@ module PinterestDL
     end
 
     def start_session(username, slug)
-      response = @client.raw_get("https://www.pinterest.com/#{username}/#{slug}/")
-      @page_url = @client.last_url
-      @host = URI(@page_url).host
-      @source_path = URI(@page_url).path
+      target = "https://www.pinterest.com/#{username}/#{slug}/"
+      response = @client.raw_get(target)
+      @page_url = @client.last_url || target
+      @host = URI(@page_url).host || 'www.pinterest.com'
+      @source_path = URI(@page_url).path || "/#{username}/#{slug}/"
       response.body
     end
 
@@ -82,7 +98,7 @@ module PinterestDL
           end
         end
       end
-      nil
+      html.to_s[/"board_id"\s*:\s*"(\d+)"/, 1]
     end
 
     def board_node?(node, slug)
@@ -96,10 +112,11 @@ module PinterestDL
       id = data.is_a?(Hash) && data['id']
       raise PinterestDL::NotFoundError, "Board not found: #{username}/#{slug} (private boards need --cookies)" unless id
 
-      id
+      id.to_s
     end
 
     def feed_request(board_id, section)
+      @section = section
       unless section
         options = {
           board_id: board_id,
@@ -159,21 +176,7 @@ module PinterestDL
     end
 
     def build_pin(raw)
-      return nil unless raw.is_a?(Hash)
-      return nil if raw['type'] && raw['type'] != 'pin'
-
-      id = raw['id']
-      return nil unless id
-
-      {
-        id: id,
-        pin_url: "https://www.pinterest.com/pin/#{id}/",
-        title: raw['title'] || raw['grid_title'],
-        description: raw['description'],
-        creator: raw.dig('pinner', 'username') || raw.dig('pinner', 'full_name'),
-        image_url: raw.dig('images', 'orig', 'url'),
-        video_url: PinterestDL::Extractors::PinData.first_video_url(raw)
-      }
+      PinterestDL::Extractors::PinData.build_pin_hash(raw, quality: @config.quality)
     end
   end
 end
