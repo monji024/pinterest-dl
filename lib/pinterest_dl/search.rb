@@ -14,12 +14,15 @@ module PinterestDL
     end
 
     def call(query, limit: 25, pages: 5, type: :all)
+      raise ArgumentError, 'query must not be empty' if query.to_s.strip.empty?
+
+      session = establish_session(query)
       results = []
       bookmarks = nil
       pages_fetched = 0
 
       loop do
-        page = fetch_page(query, bookmarks: bookmarks)
+        page = fetch_page(session, query, bookmarks: bookmarks)
         pins = page[:pins]
         results.concat(PinterestDL::MediaType.filter(pins, type))
         bookmarks = page[:bookmarks]
@@ -36,8 +39,7 @@ module PinterestDL
 
     private
 
-    def fetch_page(query, bookmarks: nil)
-      session = establish_session(query)
+    def fetch_page(session, query, bookmarks: nil)
       body = @client.get(
         build_search_url(session[:source_path], query, bookmarks),
         use_cache: false,
