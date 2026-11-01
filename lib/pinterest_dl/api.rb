@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module PinterestDL
   PIN_URL_PATTERN = %r{(pinterest\.[a-z.]+/pin/|pin\.it/)}i.freeze
 
@@ -44,10 +43,14 @@ module PinterestDL
 
     def get_media(pin_url, quality: config.quality, client: Client.new(config: config))
       html, pin_id = load_pin(pin_url, client)
-      {
-        image_url: extract_pin_image(html, pin_id, quality: quality),
-        video_url: extract_pin_video(html, pin_id)
-      }
+      image = extract_pin_image(html, pin_id, quality: quality)
+      video = extract_pin_video(html, pin_id)
+      if (!image || !video) && pin_id
+        api_pin = pin_from_api(pin_id, client)
+        image ||= api_pin && api_pin[:image_url] && Extractors::Image.apply_quality(api_pin[:image_url], quality)
+        video ||= api_pin && api_pin[:video_url]
+      end
+      { image_url: image, video_url: video }
     end
 
     def download(url, path:)
@@ -58,10 +61,10 @@ module PinterestDL
       Downloader.new(config: config).download_batch(urls, dir: dir, filename: filename, &progress)
     end
 
-    def search(query, limit: 25, pages: 5, type: :all)
+    def search(query, limit: 25, pages: 5, type: :all, client: Client.new(config: config))
       type = MediaType.parse(type)
       pages = [pages, 15].max unless type == :all
-      Search.new(config: config).call(query, limit: limit, pages: pages, type: type)
+      Search.new(client: client, config: config).call(query, limit: limit, pages: pages, type: type)
     end
 
     def search_json(query, limit: 25)
@@ -76,10 +79,10 @@ module PinterestDL
       search(query, limit: limit, type: :video).filter_map { |p| p[:video_url] }
     end
 
-    def board(board_url, limit: 50, pages: 10, type: :all)
+    def board(board_url, limit: 50, pages: 10, type: :all, client: Client.new(config: config))
       type = MediaType.parse(type)
       pages = [pages, 20].max unless type == :all
-      Board.new(config: config).call(board_url, limit: limit, pages: pages, type: type)
+      Board.new(client: client, config: config).call(board_url, limit: limit, pages: pages, type: type)
     end
 
     private
@@ -100,6 +103,7 @@ module PinterestDL
       headers = {
         'Accept' => 'application/json, text/javascript, */*, q=0.01',
         'X-Requested-With' => 'XMLHttpRequest',
+        'X-Pinterest-AppState' => 'active',
         'X-Pinterest-PWS-Handler' => 'www/pin/[id].js',
         'X-Pinterest-Source-Url' => "/pin/#{pin_id}/",
         'X-CSRFToken' => client.cookie('csrftoken') || 'undefined',
@@ -109,7 +113,10 @@ module PinterestDL
       pin = JSON.parse(client.get(uri.to_s, headers: headers, use_cache: false)).dig('resource_response', 'data')
       return nil unless pin.is_a?(Hash)
 
-      { image_url: pin.dig('images', 'orig', 'url'), video_url: Extractors::PinData.first_video_url(pin) }
+      {
+        image_url: Extractors::PinData.best_image_url(pin),
+        video_url: Extractors::PinData.first_video_url(pin)
+      }
     rescue PinterestDL::Error, JSON::ParserError => e
       logger.debug("PinResource failed for pin #{pin_id}: #{e.message}")
       nil
