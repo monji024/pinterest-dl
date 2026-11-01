@@ -86,7 +86,8 @@ module PinterestDL
     end
 
     def board_node?(node, slug)
-      node['type'] == 'board' && node['id'].to_s.match?(/\A\d+\z/) && node['url'].to_s.include?("/#{slug}/")
+      node['type'] == 'board' && node['id'].to_s.match?(/\A\d+\z/) &&
+        node['url'].to_s.downcase.include?("/#{slug.to_s.downcase}/")
     end
 
     def find_board_id(username, slug)
@@ -118,7 +119,7 @@ module PinterestDL
     def find_section_id(board_id, slug)
       json = call_resource('BoardSectionsResource', board_id: board_id)
       data = json.dig('resource_response', 'data')
-      found = data.is_a?(Array) && data.find { |s| s['slug'] == slug }
+      found = data.is_a?(Array) && data.find { |s| s['slug'].to_s.casecmp?(slug.to_s) }
       raise PinterestDL::NotFoundError, "Section not found: #{slug}" unless found
 
       found['id']
