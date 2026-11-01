@@ -5,7 +5,7 @@ require 'json'
 module PinterestDL
   module Extractors
     module PinData
-      SCRIPT_PATTERN = %r{<script[^>]*id=["']__PWS_[A-Z_]+__["'][^>]*>(.*?)</script>}m.freeze
+      SCRIPT_PATTERN = %r{<script[^>]*(?:id=["']__PWS_[A-Z_]+__["']|data-relay-response=["']true["'])[^>]*>(.*?)</script>}m.freeze
 
       module_function
 
