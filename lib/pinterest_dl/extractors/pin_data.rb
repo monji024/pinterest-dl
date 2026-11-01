@@ -5,7 +5,8 @@ require 'json'
 module PinterestDL
   module Extractors
     module PinData
-      SCRIPT_PATTERN = %r{<script[^>]*(?:id=["']__PWS_[A-Z_]+__["']|data-relay-response=["']true["'])[^>]*>(.*?)</script>}m.freeze
+      SCRIPT_PATTERN =
+        %r{<script[^>]*(?:id=["']__PWS_[A-Z_]+__["']|data-relay-response=["']true["'])[^>]*>(.*?)</script>}m.freeze
 
       module_function
 
@@ -26,11 +27,23 @@ module PinterestDL
 
       def build_result(pin)
         {
-          image_url: pin.dig('images', 'orig', 'url'),
+          image_url: best_image_url(pin),
           video_url: first_video_url(pin),
           title: pin['title'] || pin['grid_title'],
           description: pin['description']
         }
+      end
+
+      def best_image_url(pin)
+        return nil unless pin.is_a?(Hash)
+
+        orig = pin.dig('images', 'orig', 'url')
+        return orig if orig
+
+        images = pin['images']
+        return nil unless images.is_a?(Hash)
+
+        images.values.filter_map { |v| v['url'] if v.is_a?(Hash) }.last
       end
 
       def parse_embedded_json(html)
@@ -62,8 +75,7 @@ module PinterestDL
       end
 
       def pin_like?(node)
-        images = node['images']
-        images.is_a?(Hash) && images.dig('orig', 'url')
+        !best_image_url(node).nil?
       end
 
       def has_media?(node)
@@ -71,6 +83,8 @@ module PinterestDL
       end
 
       def first_video_url(pin)
+        return nil unless pin.is_a?(Hash)
+
         video_list = pin.dig('videos', 'video_list')
         video_list = deep_find(pin['story_pin_data'], 'video_list') unless video_list.is_a?(Hash)
         best_video(video_list)
