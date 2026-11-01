@@ -22,12 +22,12 @@ module PinterestDL
       end
 
       def from_content_url(html)
-        match = html.match(/"contentUrl"\s*:\s*"([^"]+\.mp4[^"]*)"/)
+        match = html.to_s.match(/"contentUrl"\s*:\s*"([^"]+\.mp4[^"]*)"/)
         match && match[1]
       end
 
       def from_raw_pattern(html)
-        clean = html.gsub('\\u002F', '/').gsub('\\/', '/')
+        clean = html.to_s.gsub('\u002F', '/').gsub('\/', '/')
         match = clean.match(%r{https://v\d*\.pinimg\.com/videos/[^"'\s\\<>]+?\.mp4})
         match && match[0]
       end
