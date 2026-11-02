@@ -36,6 +36,12 @@ class BoardTest < Minitest::Test
     assert_raises(PinterestDL::InvalidURLError) { board.call('https://www.pinterest.com/pin/123456/') }
   end
 
+  def test_rejects_reserved_non_board_paths
+    board = PinterestDL::Board.new(client: FakeClient.new, config: PinterestDL::Configuration.new)
+    assert_raises(PinterestDL::InvalidURLError) { board.call('https://www.pinterest.com/search/pins/') }
+    assert_raises(PinterestDL::InvalidURLError) { board.call('https://www.pinterest.com/ideas/design/') }
+  end
+
   def test_fetches_pins_using_board_id_and_csrf_token
     board, client = build_board(
       feed_json([{ id: '1', title: 'Pin one', images: { orig: { url: 'https://i.pinimg.com/originals/a.jpg' } } }]),
