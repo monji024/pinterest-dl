@@ -22,4 +22,11 @@ class ProgressBarTest < Minitest::Test
     bar.update(1)
     assert_includes out.string, '[##########] 1/1'
   end
+
+  def test_clamps_progress_when_done_exceeds_total
+    out = StringIO.new
+    bar = PinterestDL::ProgressBar.new(total: 2, width: 10, out: out)
+    bar.update(5)
+    assert_includes out.string, '[##########] 5/2'
+  end
 end
