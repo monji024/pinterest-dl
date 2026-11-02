@@ -50,4 +50,13 @@ class SearchTest < Minitest::Test
     assert_equal %w[1 2], pins.map { |p| p[:id] }
     assert_equal 1, client.calls.count { |u| u.match?(SEARCH_PAGE) }
   end
+
+  def test_filters_results_by_video_and_image_type
+    payload = search_json([pin_node('1', video: false), pin_node('2', video: true)])
+    client = FakeClient.new({ SEARCH_PAGE => '<html></html>', %r{BaseSearchResource} => payload })
+    search = PinterestDL::Search.new(client: client, config: PinterestDL::Configuration.new)
+
+    videos = search.call('clips', type: :video)
+    assert_equal ['2'], videos.map { |p| p[:id] }
+  end
 end
