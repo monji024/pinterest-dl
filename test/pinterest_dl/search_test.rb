@@ -37,4 +37,17 @@ class SearchTest < Minitest::Test
     assert_equal 'maker', pins.first[:creator]
     assert_equal 'tok1', client.last_headers['X-CSRFToken']
   end
+
+  def test_establishes_session_only_once_across_pages
+    pages = [
+      search_json([pin_node('1')], bookmark: 'next_bm'),
+      search_json([pin_node('2')], bookmark: '-end-')
+    ]
+    client = FakeClient.new({ SEARCH_PAGE => '<html></html>', %r{BaseSearchResource} => pages })
+    search = PinterestDL::Search.new(client: client, config: PinterestDL::Configuration.new)
+
+    pins = search.call('cats', limit: 2, pages: 3)
+    assert_equal %w[1 2], pins.map { |p| p[:id] }
+    assert_equal 1, client.calls.count { |u| u.match?(SEARCH_PAGE) }
+  end
 end
