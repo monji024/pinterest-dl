@@ -59,4 +59,13 @@ class SearchTest < Minitest::Test
     videos = search.call('clips', type: :video)
     assert_equal ['2'], videos.map { |p| p[:id] }
   end
+
+  def test_handles_array_data_node_in_search_response
+    payload = { resource_response: { data: [pin_node('77')], bookmark: '-end-' } }.to_json
+    client = FakeClient.new({ SEARCH_PAGE => '<html></html>', %r{BaseSearchResource} => payload })
+    search = PinterestDL::Search.new(client: client, config: PinterestDL::Configuration.new)
+
+    pins = search.call('minimal')
+    assert_equal ['77'], pins.map { |p| p[:id] }
+  end
 end
