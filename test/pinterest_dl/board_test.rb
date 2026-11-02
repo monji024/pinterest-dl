@@ -118,4 +118,17 @@ class BoardTest < Minitest::Test
 
     assert_equal ['1'], pins.map { |p| p[:id] }
   end
+
+  def test_fetches_board_section_pins
+    sections = { resource_response: { data: [{ 'id' => 'SEC1', 'slug' => 'ui' }] } }.to_json
+    client = FakeClient.new(
+      { BOARD_PAGE => '<html></html>',
+        %r{BoardResource} => BOARD_INFO,
+        %r{BoardSectionsResource} => sections,
+        %r{BoardSectionPinsResource} => feed_json([pin_json('42')]) }
+    )
+    board = PinterestDL::Board.new(client: client, config: PinterestDL::Configuration.new)
+    pins = board.call('https://www.pinterest.com/someuser/someboard/UI/')
+    assert_equal ['42'], pins.map { |p| p[:id] }
+  end
 end
