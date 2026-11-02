@@ -78,4 +78,13 @@ class SearchTest < Minitest::Test
     pins = search.call('poster')
     assert_equal 'https://i.pinimg.com/474x/5.jpg', pins.first[:image_url]
   end
+
+  def test_falls_back_to_embedded_html_pins_when_api_returns_empty
+    html = '<script id="__PWS_DATA__" type="application/json">'            '{"pins":{"88":{"id":"88","images":{"orig":{"url":"https://i.pinimg.com/originals/88.jpg"}}}}}</script>'
+    client = FakeClient.new({ SEARCH_PAGE => html, %r{BaseSearchResource} => search_json([]) })
+    search = PinterestDL::Search.new(client: client, config: PinterestDL::Configuration.new)
+
+    pins = search.call('fallback')
+    assert_equal ['88'], pins.map { |p| p[:id] }
+  end
 end
