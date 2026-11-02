@@ -15,4 +15,11 @@ class ProgressBarTest < Minitest::Test
     assert_includes out.string, "[##########] 4/4 (100%)
 "
   end
+
+  def test_handles_zero_total_without_zero_division
+    out = StringIO.new
+    bar = PinterestDL::ProgressBar.new(total: 0, width: 10, out: out)
+    bar.update(1)
+    assert_includes out.string, '[##########] 1/1'
+  end
 end
