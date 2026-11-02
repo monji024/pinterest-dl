@@ -87,4 +87,12 @@ class SearchTest < Minitest::Test
     pins = search.call('fallback')
     assert_equal ['88'], pins.map { |p| p[:id] }
   end
+
+  def test_raises_on_empty_query_and_invalid_json
+    client = FakeClient.new({ SEARCH_PAGE => '<html></html>', %r{BaseSearchResource} => 'not-json' })
+    search = PinterestDL::Search.new(client: client, config: PinterestDL::Configuration.new)
+
+    assert_raises(ArgumentError) { search.call('   ') }
+    assert_raises(PinterestDL::NotFoundError) { search.call('broken') }
+  end
 end
