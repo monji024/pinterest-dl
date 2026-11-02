@@ -141,4 +141,14 @@ class BoardTest < Minitest::Test
     pins = board.call('https://www.pinterest.com/someuser/SomeBoard/')
     assert_equal ['1'], pins.map { |p| p[:id] }
   end
+
+  def test_falls_back_to_embedded_pins_in_html_when_feed_is_empty
+    page = '<script id="__PWS_DATA__" type="application/json">' \
+           '{"b":{"type":"board","id":"555","url":"/someuser/someboard/"},' \
+           '"p":{"id":"99","images":{"orig":{"url":"https://i.pinimg.com/originals/99.jpg"}}}}</script>'
+    client = FakeClient.new({ BOARD_PAGE => page, %r{BoardFeedResource} => feed_json([]) })
+    board = PinterestDL::Board.new(client: client, config: PinterestDL::Configuration.new)
+    pins = board.call('https://www.pinterest.com/someuser/someboard/')
+    assert_equal ['99'], pins.map { |p| p[:id] }
+  end
 end
