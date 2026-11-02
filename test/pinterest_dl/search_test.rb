@@ -68,4 +68,14 @@ class SearchTest < Minitest::Test
     pins = search.call('minimal')
     assert_equal ['77'], pins.map { |p| p[:id] }
   end
+
+  def test_applies_configured_quality_to_search_images
+    config = PinterestDL::Configuration.new
+    config.quality = :'474x'
+    client = FakeClient.new({ SEARCH_PAGE => '<html></html>', %r{BaseSearchResource} => search_json([pin_node('5')]) })
+    search = PinterestDL::Search.new(client: client, config: config)
+
+    pins = search.call('poster')
+    assert_equal 'https://i.pinimg.com/474x/5.jpg', pins.first[:image_url]
+  end
 end
