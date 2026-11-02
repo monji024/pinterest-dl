@@ -131,4 +131,14 @@ class BoardTest < Minitest::Test
     pins = board.call('https://www.pinterest.com/someuser/someboard/UI/')
     assert_equal ['42'], pins.map { |p| p[:id] }
   end
+
+  def test_matches_board_slug_case_insensitively_in_page_data
+    page = '<script id="__PWS_DATA__" type="application/json">' \
+           '{"b":{"type":"board","id":"777","url":"/someuser/someboard/"}}</script>'
+    client = FakeClient.new({ %r{pinterest\.com/someuser/SomeBoard/?\z} => page,
+                              %r{BoardFeedResource} => feed_json([pin_json('1')]) })
+    board = PinterestDL::Board.new(client: client, config: PinterestDL::Configuration.new)
+    pins = board.call('https://www.pinterest.com/someuser/SomeBoard/')
+    assert_equal ['1'], pins.map { |p| p[:id] }
+  end
 end
