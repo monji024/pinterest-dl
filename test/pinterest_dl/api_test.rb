@@ -193,4 +193,11 @@ class ApiTest < Minitest::Test
     assert_equal 'https://i.pinimg.com/originals/m.jpg', media[:image_url]
     assert_equal 'https://v1.pinimg.com/videos/m.mp4', media[:video_url]
   end
+
+  def test_search_videos_filters_to_video_urls_only
+    pins = [{ image_url: 'https://i.pinimg.com/originals/a.jpg', video_url: 'https://v.pinimg.com/videos/b.mp4' }]
+    PinterestDL.stub(:search, pins) do
+      assert_equal ['https://v.pinimg.com/videos/b.mp4'], PinterestDL.search_videos('clips')
+    end
+  end
 end
