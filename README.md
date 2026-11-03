@@ -166,7 +166,7 @@ pinterest-dl search "cats" -t pin -n 30
 pinterest-dl --help
 ```
 
-Flags: `-o/--output`, `-n/--limit`, `-t/--type` (`all`, `image`, `video`, `pin`), `-q/--quality`, `-c/--cookies`, `-v/--verbose`.
+Flags: `-o/--output`, `-n/--limit`, `-t/--type` (`all`, `image`, `video`, `pin`), `-q/--quality`, `-c/--cookies`, `-v/--verbose`, `--version`.
 
 
 ## Development
