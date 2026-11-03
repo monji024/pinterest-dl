@@ -36,4 +36,12 @@ class ConfigurationTest < Minitest::Test
   ensure
     PinterestDL.config.cookies = nil
   end
+
+  def test_reset_restores_defaults_and_ignores_blank_cookies
+    @config.cookies = '   '
+    refute @config.authenticated?
+    @config.quality = :'736x'
+    @config.reset!
+    assert_equal :originals, @config.quality
+  end
 end
