@@ -151,4 +151,15 @@ class BoardTest < Minitest::Test
     pins = board.call('https://www.pinterest.com/someuser/someboard/')
     assert_equal ['99'], pins.map { |p| p[:id] }
   end
+
+  def test_applies_configured_quality_to_board_pin_images
+    config = PinterestDL::Configuration.new
+    config.quality = :'236x'
+    client = FakeClient.new({ BOARD_PAGE => '<html></html>',
+                              %r{BoardResource} => BOARD_INFO,
+                              %r{BoardFeedResource} => feed_json([pin_json('1')]) })
+    board = PinterestDL::Board.new(client: client, config: config)
+    pins = board.call('https://www.pinterest.com/someuser/someboard/')
+    assert_equal 'https://i.pinimg.com/236x/1.jpg', pins.first[:image_url]
+  end
 end
