@@ -39,4 +39,10 @@ class DownloaderTest < Minitest::Test
       assert_equal [[1, 2], [2, 2]], progress_calls
     end
   end
+
+  def test_download_rejects_empty_url_or_path
+    downloader = PinterestDL::Downloader.new(client: FakeClient.new, config: PinterestDL::Configuration.new)
+    assert_raises(ArgumentError) { downloader.download('', path: 'out.jpg') }
+    assert_raises(ArgumentError) { downloader.download('https://i.pinimg.com/originals/a.jpg', path: '  ') }
+  end
 end
