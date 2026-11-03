@@ -37,6 +37,7 @@ class ClientTest < Minitest::Test
     when '/loop' then ['302 Found', "Location: /loop\r\n", '']
     when '/relative' then ['301 Moved Permanently', "Location: sub/page\r\n", '']
     when '/sub/page' then ['200 OK', "Set-Cookie: csrftoken=abc123; Path=/\r\n", 'ok']
+    when '/unauth' then ['401 Unauthorized', '', 'denied']
     else ['404 Not Found', '', 'nope']
     end
   end
@@ -69,5 +70,10 @@ class ClientTest < Minitest::Test
 
   def test_raises_not_found
     assert_raises(PinterestDL::NotFoundError) { PinterestDL::Client.new.get("#{@base}/missing") }
+  end
+
+  def test_cookie_lookup_handles_nil_url_safely
+    client = PinterestDL::Client.new
+    assert_nil client.cookie('csrftoken')
   end
 end
