@@ -3,6 +3,16 @@
 All notable changes to this project are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [2.2.0]
+
+### Fixed
+- `Board` and `Search` requests now send `X-Pinterest-Source-Url` and `X-Pinterest-AppState`, match slugs case-insensitively, deduplicate pins, apply `config.quality`, and fall back to SSR HTML pins.
+- `Search` creates a session once per search call instead of once per page and handles array `data` payloads.
+- `PinData` reads `<script data-relay-response="true">` blocks and non-`orig` image buckets.
+- `Client` normalizes country domains in its cookie jar, guards `cookie` when URL is nil, and raises `AuthenticationError` on HTTP 401.
+- `get_media` falls back to `PinResource` when page HTML is incomplete.
+- CLI supports `-v/--verbose`, `--version`, `media`, and applies `-q/--quality` globally.
+
 ## [2.1.5]
 
 ### Fixed
