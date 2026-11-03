@@ -76,4 +76,11 @@ class ClientTest < Minitest::Test
     client = PinterestDL::Client.new
     assert_nil client.cookie('csrftoken')
   end
+
+  def test_caches_get_responses_until_cleared
+    client = PinterestDL::Client.new
+    assert_equal 'ok', client.get("#{@base}/sub/page")
+    assert_equal 'ok', client.get("#{@base}/sub/page")
+    client.clear_cache
+  end
 end
