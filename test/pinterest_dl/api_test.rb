@@ -178,4 +178,19 @@ class ApiTest < Minitest::Test
       assert_equal ['https://i.pinimg.com/originals/a.jpg'], PinterestDL.search_images('cats')
     end
   end
+
+  def test_get_media_falls_back_to_api_when_page_is_incomplete
+    api = {
+      resource_response: {
+        data: {
+          images: { orig: { url: 'https://i.pinimg.com/originals/m.jpg' } },
+          videos: { video_list: { V_720P: { url: 'https://v1.pinimg.com/videos/m.mp4', width: 720, height: 1280 } } }
+        }
+      }
+    }.to_json
+    client = FakeClient.new({ %r{PinResource} => api, %r{pinterest\.com/pin} => '<html></html>' })
+    media = PinterestDL.get_media('https://www.pinterest.com/pin/123/', client: client)
+    assert_equal 'https://i.pinimg.com/originals/m.jpg', media[:image_url]
+    assert_equal 'https://v1.pinimg.com/videos/m.mp4', media[:video_url]
+  end
 end
