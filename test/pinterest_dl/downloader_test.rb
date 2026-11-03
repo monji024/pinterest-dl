@@ -45,4 +45,14 @@ class DownloaderTest < Minitest::Test
     assert_raises(ArgumentError) { downloader.download('', path: 'out.jpg') }
     assert_raises(ArgumentError) { downloader.download('https://i.pinimg.com/originals/a.jpg', path: '  ') }
   end
+
+  def test_download_batch_supports_custom_filename_callable
+    Dir.mktmpdir do |dir|
+      client = FakeClient.new({ /pinimg/ => 'data' })
+      downloader = PinterestDL::Downloader.new(client: client, config: PinterestDL::Configuration.new)
+      res = downloader.download_batch(['https://i.pinimg.com/originals/a.jpg'], dir: dir,
+                                      filename: ->(_u, i) { "custom_#{i}.jpg" })
+      assert_equal [File.join(dir, 'custom_0.jpg')], res[:succeeded]
+    end
+  end
 end
