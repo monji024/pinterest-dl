@@ -83,4 +83,8 @@ class ClientTest < Minitest::Test
     assert_equal 'ok', client.get("#{@base}/sub/page")
     client.clear_cache
   end
+
+  def test_raises_authentication_error_on_401
+    assert_raises(PinterestDL::AuthenticationError) { PinterestDL::Client.new.get("#{@base}/unauth") }
+  end
 end
