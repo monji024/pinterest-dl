@@ -53,4 +53,16 @@ class PinDataExtractorTest < Minitest::Test
     result = PinterestDL::Extractors::PinData.extract(html)
     assert_equal 'https://i.pinimg.com/originals/real.jpg', result[:image_url]
   end
+
+  def test_extracts_from_relay_response_script_and_converts_hls
+    html = <<~HTML
+      <script data-relay-response="true" type="application/json">
+      {"pin":{"id":"55","images":{"736x":{"url":"https://i.pinimg.com/736x/a.jpg"}},
+       "videos":{"video_list":{"V_HLSV3":{"url":"https://v1.pinimg.com/videos/iht/hls/clip.m3u8"}}}}}
+      </script>
+    HTML
+    result = PinterestDL::Extractors::PinData.extract(html, '55')
+    assert_equal 'https://i.pinimg.com/736x/a.jpg', result[:image_url]
+    assert_equal 'https://v1.pinimg.com/videos/iht/expMp4/clip_720w.mp4', result[:video_url]
+  end
 end
