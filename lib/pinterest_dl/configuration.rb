@@ -48,5 +48,30 @@ module PinterestDL
       @retry_jitter = 0.25
       @quality = :originals
       @rate_limit_interval = 0.0
+      @proxy = ENV['HTTPS_PROXY'] || ENV['https_proxy'] || ENV['HTTP_PROXY'] || ENV['http_proxy']
+      @max_cache_entries = 256
+      @concurrency = 4
+      @overwrite = true
+      @max_file_size = DEFAULT_MAX_FILE_SIZE
+      @max_speed = nil
+      @verify_content_type = true
+      @progress = true
+      @resume = true
+      @deduplicate = true
+      @collision_strategy = :rename
+      @allow_local_network = false
+      @https_only = false
+      @min_free_disk_space = 1024 * 1024
+      self.logger = default_logger
+      self
+    end
 
-# step-1
+    def merge(**options)
+      dup.tap { |copy| copy.send(:apply_options, options) }
+    end
+
+    def quality=(value)
+      value = value.to_sym
+      valid = VALID_QUALITIES.join(', ')
+
+# step-2
