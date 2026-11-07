@@ -57,5 +57,34 @@ module PinterestDL
       raise InvalidURLError.new("Malformed URL: #{raw_url}", url: raw_url, cause_error: e)
     end
 
+    def validate_scheme!(uri, raw_url, https_only: false)
+      schemes = https_only ? %w[https] : %w[http https]
+      return if schemes.include?(uri.scheme.to_s.downcase)
 
-# step-1
+      raise InvalidURLError.new("Unsupported URL scheme #{uri.scheme.inspect} for #{raw_url}", url: raw_url)
+    end
+
+    def validate_host_presence!(uri, raw_url)
+      host = uri.host.to_s.strip
+      raise InvalidURLError.new("Missing host in URL: #{raw_url}", url: raw_url) if host.empty?
+      raise InvalidURLError.new("Invalid host in URL: #{raw_url}", url: raw_url) if host.include?(' ')
+    end
+
+    def validate_no_credentials!(uri, raw_url)
+      return if uri.user.nil? && uri.password.nil?
+
+      raise InvalidURLError.new("Credentials in URL are not allowed: #{redact(raw_url.to_s)}", url: redact(raw_url.to_s))
+    end
+
+    def validate_ssrf!(uri, raw_url, allow_local: false)
+      return if allow_local
+
+      host = clean_host(uri.host)
+      if host == 'localhost' || host.end_with?('.localhost') || host.end_with?('.local') || host.end_with?('.internal')
+        raise SSRFError.new("Blocked internal host #{host}", url: raw_url)
+      end
+
+      ip = parse_ip(host)
+      if ip
+
+# step-2
