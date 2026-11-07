@@ -30,5 +30,38 @@ module PinterestDL
     end
   end
 
+  class ConnectionError < NetworkError
+    def initialize(message = 'Connection failed or closed unexpectedly', **kwargs)
+      super
+    end
+  end
 
-# step-0
+  class SSLError < NetworkError
+    def initialize(message = 'SSL/TLS handshake or verification failed', **kwargs)
+      super
+    end
+  end
+
+  class RedirectError < NetworkError
+    def initialize(message = 'Redirect error', **kwargs)
+      super
+    end
+  end
+
+  class HTTPError < Error
+    def initialize(message = 'HTTP request failed', **kwargs)
+      super
+    end
+  end
+
+  class NotFoundError < HTTPError
+    def initialize(message = 'The requested resource was not found', **kwargs)
+      super(message, status_code: kwargs.fetch(:status_code, 404), **kwargs.except(:status_code))
+    end
+  end
+
+  class AuthenticationError < HTTPError
+    def initialize(message = 'Authentication required (set PinterestDL.configure { |c| c.cookies = ... })', **kwargs)
+      super(message, status_code: kwargs.fetch(:status_code, 401), **kwargs.except(:status_code))
+
+# step-1
