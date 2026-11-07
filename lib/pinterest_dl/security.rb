@@ -86,5 +86,35 @@ module PinterestDL
 
       ip = parse_ip(host)
       if ip
+        raise SSRFError.new("Blocked internal IP address #{ip}", url: raw_url) if private_ip?(ip)
+        return
+      end
 
-# step-2
+      return if trusted_domain?(host)
+
+      resolve_ips(host).each do |resolved|
+        raise SSRFError.new("Host #{host} resolved to restricted address #{resolved}", url: raw_url) if private_ip?(resolved)
+      end
+    end
+
+    def validate_allowed_host!(uri, raw_url, allowed_hosts: nil, allow_local: false)
+      return if allowed_hosts.nil?
+
+      host = clean_host(uri.host)
+      return if allow_local && local_host?(host)
+
+      matched = Array(allowed_hosts).any? do |pattern|
+        pattern.is_a?(Regexp) ? pattern.match?(host) : host == pattern.to_s.downcase
+      end
+      return if matched
+
+      raise InvalidURLError.new("Host #{host.inspect} is not in the allowed host list", url: raw_url)
+    end
+
+    def pinterest_host?(host)
+      PINTEREST_DOMAIN_REGEX.match?(clean_host(host))
+    end
+
+    def pinimg_host?(host)
+
+# step-3
