@@ -98,5 +98,30 @@ module PinterestDL
       @concurrency = num
     end
 
+    def logger=(custom_logger)
+      @logger = wrap_redacting_logger(custom_logger || default_logger)
+    end
 
-# step-3
+    def authenticated?
+      !@cookies.nil? && !@cookies.empty?
+    end
+
+    def validate!
+      raise ConfigurationError, 'open_timeout must be positive' if @open_timeout.to_f <= 0
+      raise ConfigurationError, 'read_timeout must be positive' if @read_timeout.to_f <= 0
+      raise ConfigurationError, 'max_retries must be >= 0' if @max_retries.to_i.negative?
+      raise ConfigurationError, 'max_file_size must be positive' if @max_file_size && @max_file_size.to_i <= 0
+
+      true
+    end
+
+    private
+
+    def apply_options(options)
+      options.each do |key, value|
+        setter = :"#{key}="
+        raise ConfigurationError, "Unknown configuration option: #{key}" unless respond_to?(setter)
+
+        public_send(setter, value)
+
+# step-4
