@@ -123,5 +123,28 @@ module PinterestDL
         raise ConfigurationError, "Unknown configuration option: #{key}" unless respond_to?(setter)
 
         public_send(setter, value)
+      end
+    end
 
-# step-4
+    def default_logger
+      Logger.new($stderr).tap do |log|
+        log.level = Logger::WARN
+      end
+    end
+
+    def wrap_redacting_logger(base_logger)
+      return base_logger unless base_logger.respond_to?(:formatter=)
+
+      original_formatter = base_logger.formatter
+      base_logger.formatter = proc do |severity, time, progname, msg|
+        safe_msg = Security.redact(msg.to_s)
+        if original_formatter
+          Security.redact(original_formatter.call(severity, time, progname, safe_msg).to_s)
+        else
+          "[pinterest-dl] #{severity}: #{safe_msg}\n"
+        end
+      end
+      base_logger
+    end
+  end
+end
