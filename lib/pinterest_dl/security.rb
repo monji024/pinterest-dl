@@ -27,5 +27,35 @@ module PinterestDL
       IPAddr.new('240.0.0.0/4'),
       IPAddr.new('::/128'),
       IPAddr.new('::1/128'),
+      IPAddr.new('fc00::/7'),
+      IPAddr.new('fe80::/10'),
+      IPAddr.new('ff00::/8')
+    ].freeze
 
-# step-0
+    SENSITIVE_KEY_PATTERN = /
+      (cookie|set-cookie|csrftoken|x-csrftoken|sessionid|_pinterest_sess|_auth|authorization|token|password|secret)
+      (\s*[:=]\s*)
+      ([^\s,;'"&]+)
+    /ix.freeze
+
+    URL_CREDENTIAL_PATTERN = %r{(https?://[^/\s:@]+:)([^@\s/]+)(@)}i.freeze
+
+    module_function
+
+    def parse_and_validate_url!(raw_url, allow_local: false, allowed_hosts: nil, https_only: false)
+      str = raw_url.to_s.strip
+      raise InvalidURLError.new('URL must not be empty', url: raw_url) if str.empty?
+
+      uri = URI.parse(str)
+      validate_scheme!(uri, raw_url, https_only: https_only)
+      validate_host_presence!(uri, raw_url)
+      validate_no_credentials!(uri, raw_url)
+      validate_ssrf!(uri, raw_url, allow_local: allow_local)
+      validate_allowed_host!(uri, raw_url, allowed_hosts: allowed_hosts, allow_local: allow_local)
+      uri
+    rescue URI::InvalidURIError => e
+      raise InvalidURLError.new("Malformed URL: #{raw_url}", url: raw_url, cause_error: e)
+    end
+
+
+# step-1
