@@ -175,5 +175,33 @@ module PinterestDL
 
     def resolve_ips(host)
       Resolv.getaddresses(host).filter_map { |addr| parse_ip(addr) }
+    rescue Resolv::ResolvError, SocketError, StandardError
+      []
+    end
 
-# step-5
+    def clean_host(host)
+      host.to_s.strip.downcase.sub(/\A\[(.*)\]\z/, '\1').chomp('.')
+    end
+
+    def redact(text)
+      return '' if text.nil?
+
+      sanitized = text.to_s.dup
+      sanitized.gsub!(URL_CREDENTIAL_PATTERN, '\1[REDACTED]\3')
+      sanitized.gsub!(SENSITIVE_KEY_PATTERN, '\1\2[REDACTED]')
+      sanitized
+    end
+
+    def redact_headers(headers)
+      return {} unless headers.is_a?(Hash)
+
+      headers.each_with_object({}) do |(key, value), out|
+        if key.to_s.match?(/\A(cookie|set-cookie|authorization|x-csrftoken|proxy-authorization)\z/i)
+          out[key] = '[REDACTED]'
+        else
+          out[key] = redact(value.to_s)
+        end
+      end
+    end
+  end
+end
