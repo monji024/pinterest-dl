@@ -23,5 +23,30 @@ module PinterestDL
     attr_reader :quality, :cookies, :concurrency, :cookie_jar, :logger
 
     def initialize(**options)
+      reset!
+      apply_options(options)
+    end
 
-# step-0
+    def initialize_copy(other)
+      super
+      @cookie_jar = other.cookie_jar.dup
+      @cookies = other.cookies&.dup
+      @user_agent = other.user_agent&.dup
+      @proxy = other.proxy&.dup
+    end
+
+    def reset!
+      @user_agent = DEFAULT_USER_AGENT
+      @cookies = nil
+      @cookie_jar = CookieJar.new
+      @open_timeout = 10
+      @read_timeout = 20
+      @write_timeout = 20
+      @max_retries = 3
+      @retry_wait = 1.0
+      @max_retry_wait = 30.0
+      @retry_jitter = 0.25
+      @quality = :originals
+      @rate_limit_interval = 0.0
+
+# step-1
