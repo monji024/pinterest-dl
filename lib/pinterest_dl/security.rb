@@ -116,5 +116,34 @@ module PinterestDL
     end
 
     def pinimg_host?(host)
+      PINIMG_DOMAIN_REGEX.match?(clean_host(host))
+    end
 
-# step-3
+    def shortener_host?(host)
+      SHORTENER_DOMAIN_REGEX.match?(clean_host(host))
+    end
+
+    def trusted_domain?(host)
+      pinterest_host?(host) || pinimg_host?(host) || shortener_host?(host)
+    end
+
+    def cookie_eligible_host?(host, allow_local: false)
+      cleaned = clean_host(host)
+      return true if allow_local && local_host?(cleaned)
+
+      pinterest_host?(cleaned)
+    end
+
+    def same_security_domain?(source_uri, target_uri)
+      src_host = clean_host(source_uri.host)
+      dst_host = clean_host(target_uri.host)
+      return true if src_host == dst_host
+      return true if pinterest_host?(src_host) && pinterest_host?(dst_host)
+
+      false
+    end
+
+    def allowed_redirect_target?(source_uri, target_uri, allow_local: false)
+      dst_host = clean_host(target_uri.host)
+
+# step-4
