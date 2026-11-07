@@ -262,5 +262,56 @@ module PinterestDL
           attrs[:expires] = seconds <= 0 ? Time.at(0) : Time.now + seconds
         when 'expires'
           attrs[:expires] = parse_expiry(val)
+        when 'samesite'
+          attrs[:same_site] = val&.downcase
+        end
+      end
 
-# step-4
+      if Security.pinterest_host?(attrs[:domain]) && attrs[:host_only]
+        attrs[:domain] = 'pinterest.com'
+        attrs[:host_only] = false
+      end
+
+      Cookie.new(**attrs)
+    end
+
+    def domain_allowed_for_origin?(cookie_domain, origin_host)
+      return false if cookie_domain.empty? || !cookie_domain.include?('.') && origin_host != cookie_domain
+      return true if origin_host == cookie_domain
+      return true if cookie_domain == 'pinterest.com' && Security.pinterest_host?(origin_host)
+
+      origin_host.end_with?(".#{cookie_domain}")
+    end
+
+    def default_cookie_path(uri_path)
+      path = uri_path.to_s
+      return '/' if path.empty? || !path.start_with?('/') || path == '/'
+
+      last_slash = path.rindex('/')
+      last_slash.nil? || last_slash.zero? ? '/' : path[0...last_slash]
+    end
+
+    def parse_expiry(raw)
+      return nil if raw.nil? || raw.empty?
+
+      Time.httpdate(raw)
+    rescue ArgumentError
+      begin
+        Time.parse(raw)
+      rescue ArgumentError
+        nil
+      end
+    end
+
+    def upsert_unlocked(cookie)
+      @entries.reject! do |existing|
+        existing.name == cookie.name &&
+          existing.domain == cookie.domain &&
+          existing.path == cookie.path
+      end
+      return if cookie.value.empty? || cookie.expired?
+
+      @entries << cookie
+    end
+  end
+end
