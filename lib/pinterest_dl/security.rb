@@ -145,5 +145,35 @@ module PinterestDL
 
     def allowed_redirect_target?(source_uri, target_uri, allow_local: false)
       dst_host = clean_host(target_uri.host)
+      return false if target_uri.scheme == 'http' && source_uri.scheme == 'https' && !allow_local
+      return true if allow_local && local_host?(dst_host)
 
-# step-4
+      trusted_domain?(dst_host) || clean_host(source_uri.host) == dst_host
+    end
+
+    def local_host?(host)
+      cleaned = clean_host(host)
+      return true if cleaned == 'localhost'
+
+      ip = parse_ip(cleaned)
+      !ip.nil? && private_ip?(ip)
+    end
+
+    def private_ip?(ip_addr)
+      addr = ip_addr.is_a?(IPAddr) ? ip_addr : parse_ip(ip_addr.to_s)
+      return false unless addr
+
+      addr = addr.native if addr.respond_to?(:ipv4_mapped?) && addr.ipv4_mapped?
+      PRIVATE_CIDRS.any? { |cidr| cidr.include?(addr) }
+    end
+
+    def parse_ip(str)
+      IPAddr.new(str)
+    rescue IPAddr::InvalidAddressError, IPAddr::AddressFamilyError
+      nil
+    end
+
+    def resolve_ips(host)
+      Resolv.getaddresses(host).filter_map { |addr| parse_ip(addr) }
+
+# step-5
