@@ -96,4 +96,37 @@ module PinterestDL
     end
   end
 
-# step-2
+  class ValidationError < Error
+    def initialize(message = 'Validation failed', **kwargs)
+      super
+    end
+  end
+
+  class InvalidURLError < ValidationError
+    def initialize(message = 'The given URL does not look like a valid Pinterest URL', **kwargs)
+      super
+    end
+  end
+
+  class SSRFError < InvalidURLError
+    def initialize(message = 'Access to private, loopback, or internal network addresses is blocked', **kwargs)
+      super
+    end
+  end
+
+  class InvalidResponseError < ValidationError
+    def initialize(message = 'Unexpected or malformed response payload from Pinterest', **kwargs)
+      super
+    end
+  end
+
+  class DownloadError < Error
+    def initialize(message = 'Failed to download file', **kwargs)
+      super
+    end
+  end
+
+  class FileTooLargeError < DownloadError
+    attr_reader :max_size, :actual_size
+
+# step-3
