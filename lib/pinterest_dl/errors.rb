@@ -129,4 +129,35 @@ module PinterestDL
   class FileTooLargeError < DownloadError
     attr_reader :max_size, :actual_size
 
-# step-3
+    def initialize(message = 'File size exceeds the configured maximum limit', max_size: nil, actual_size: nil, **kwargs)
+      @max_size = max_size
+      @actual_size = actual_size
+      super(message, **kwargs)
+    end
+  end
+
+  class IncompleteDownloadError < DownloadError
+    attr_reader :expected_bytes, :received_bytes
+
+    def initialize(message = 'Download ended before all bytes were received', expected_bytes: nil, received_bytes: nil, **kwargs)
+      @expected_bytes = expected_bytes
+      @received_bytes = received_bytes
+      super(message, **kwargs)
+    end
+  end
+
+  class InvalidMediaError < DownloadError
+    attr_reader :content_type
+
+    def initialize(message = 'Downloaded content is not a valid image or video', content_type: nil, **kwargs)
+      @content_type = content_type
+      super(message, **kwargs)
+    end
+  end
+
+  class DiskSpaceError < DownloadError
+    def initialize(message = 'Insufficient disk space or storage write failure', **kwargs)
+      super
+    end
+  end
+end
