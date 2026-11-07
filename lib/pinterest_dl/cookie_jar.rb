@@ -156,5 +156,58 @@ module PinterestDL
                   name: k,
                   value: v,
                   domain: 'pinterest.com',
+                  host_only: false,
+                  path: '/',
+                  secure: false,
+                  http_only: false,
+                  expires: nil,
+                  same_site: nil
+                )
+              )
+            end
+          end
+        end
+      end
+    end
 
-# step-2
+    def header_for(url_or_uri, allow_local: false)
+      uri = url_or_uri.is_a?(URI) ? url_or_uri : URI.parse(url_or_uri.to_s)
+      return '' unless Security.cookie_eligible_host?(uri.host, allow_local: allow_local)
+
+      now = Time.now
+      matched = @mutex.synchronize do
+        @entries.reject! { |c| c.expired?(now) }
+        @entries
+          .select { |c| c.matches?(uri, now: now) }
+          .sort_by { |c| -c.path.to_s.length }
+      end
+
+      seen = {}
+      pairs = matched.each_with_object([]) do |cookie, acc|
+        next if seen[cookie.name]
+
+        seen[cookie.name] = true
+        acc << "#{cookie.name}=#{cookie.value}"
+      end
+      pairs.join('; ')
+    rescue URI::InvalidURIError
+      ''
+    end
+
+    def value_for(name, url_or_uri = 'https://www.pinterest.com', allow_local: true)
+      target = url_or_uri.to_s.strip.empty? ? 'https://www.pinterest.com' : url_or_uri.to_s
+      uri = target.is_a?(URI) ? target : URI.parse(target)
+      return nil unless Security.cookie_eligible_host?(uri.host, allow_local: allow_local)
+
+      now = Time.now
+      @mutex.synchronize do
+        @entries.reject! { |c| c.expired?(now) }
+        found = @entries
+                .select { |c| c.name == name.to_s && c.matches?(uri, now: now) }
+                .max_by { |c| c.path.to_s.length }
+        found&.value
+      end
+    rescue URI::InvalidURIError
+      nil
+
+# step-3
