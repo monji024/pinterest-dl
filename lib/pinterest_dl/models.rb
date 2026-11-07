@@ -125,4 +125,45 @@ module PinterestDL
       to_h.dig(first_key.to_sym, *rest)
     end
 
-# step-2
+    def total_count
+      @succeeded.size + @failed.size + @duplicates.size
+    end
+
+    def average_speed
+      return 0.0 if @elapsed_seconds <= 0.0
+
+      @bytes_downloaded / @elapsed_seconds
+    end
+
+    def success?
+      @failed.empty?
+    end
+
+    def to_h
+      {
+        succeeded: @succeeded,
+        failed: @failed,
+        skipped: @skipped,
+        resumed: @resumed,
+        duplicates: @duplicates,
+        bytes_downloaded: @bytes_downloaded,
+        elapsed_seconds: @elapsed_seconds.round(3),
+        average_speed: average_speed.round(2)
+      }
+    end
+    alias to_hash to_h
+
+    def to_json(*args)
+      serializable = to_h.merge(
+        failed: @failed.map do |entry|
+          {
+            url: entry[:url],
+            error: entry[:error].respond_to?(:message) ? entry[:error].message : entry[:error].to_s,
+            error_class: entry[:error].class.name
+          }
+        end
+      )
+      serializable.to_json(*args)
+    end
+  end
+end
