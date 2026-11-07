@@ -50,5 +50,58 @@ module PinterestDL
     def initialize_copy(other)
       super
       @mutex = Mutex.new
+      @entries = other.entries_snapshot.map(&:dup)
+    end
 
-# step-0
+    def entries_snapshot
+      @mutex.synchronize { @entries.map(&:dup) }
+    end
+
+    def clear
+      @mutex.synchronize { @entries.clear }
+    end
+
+    def empty?
+      @mutex.synchronize { @entries.empty? }
+    end
+
+    def set_from_header(set_cookie_fields, origin_url)
+      fields = Array(set_cookie_fields).flatten.compact
+      return if fields.empty?
+
+      uri = URI.parse(origin_url.to_s)
+      @mutex.synchronize do
+        fields.each do |raw_line|
+          cookie = parse_set_cookie(raw_line, uri)
+          upsert_unlocked(cookie) if cookie
+        end
+      end
+    rescue URI::InvalidURIError
+      nil
+    end
+
+    def load_raw(raw_cookies, default_domain: '.pinterest.com')
+      return if raw_cookies.nil? || raw_cookies.to_s.strip.empty?
+
+      text = raw_cookies.to_s.strip
+      if File.file?(text)
+        load_netscape_file(text)
+      else
+        load_cookie_string(text, default_domain: default_domain)
+      end
+    end
+
+    def load_cookie_string(cookie_str, default_domain: '.pinterest.com')
+      @mutex.synchronize do
+        cookie_str.to_s.split(';').each do |pair|
+          name, value = pair.strip.split('=', 2)
+          next if name.nil? || value.nil? || name.strip.empty?
+
+          cookie = Cookie.new(
+            name: name.strip,
+            value: value.strip,
+            domain: default_domain.sub(/\A\./, ''),
+            host_only: false,
+            path: '/',
+
+# step-1
