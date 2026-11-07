@@ -83,4 +83,46 @@ module PinterestDL
       to_h
     end
 
-# step-1
+    def to_json(*args)
+      to_h.to_json(*args)
+    end
+
+    def ==(other)
+      case other
+      when Pin then to_h == other.to_h
+      when Hash then to_h == other.transform_keys(&:to_sym).slice(*ATTRIBUTES)
+      else false
+      end
+    end
+    alias eql? ==
+
+    def hash
+      to_h.hash
+    end
+  end
+
+  class DownloadReport
+    attr_reader :succeeded, :failed, :skipped, :resumed, :duplicates,
+                :bytes_downloaded, :elapsed_seconds, :items
+
+    def initialize(succeeded: [], failed: [], skipped: [], resumed: [], duplicates: [],
+                   bytes_downloaded: 0, elapsed_seconds: 0.0, items: [])
+      @succeeded = succeeded
+      @failed = failed
+      @skipped = skipped
+      @resumed = resumed
+      @duplicates = duplicates
+      @bytes_downloaded = bytes_downloaded.to_i
+      @elapsed_seconds = elapsed_seconds.to_f
+      @items = items
+    end
+
+    def [](key)
+      to_h[key.to_sym]
+    end
+
+    def dig(first_key, *rest)
+      to_h.dig(first_key.to_sym, *rest)
+    end
+
+# step-2
