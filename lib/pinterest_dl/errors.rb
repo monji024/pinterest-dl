@@ -63,5 +63,37 @@ module PinterestDL
   class AuthenticationError < HTTPError
     def initialize(message = 'Authentication required (set PinterestDL.configure { |c| c.cookies = ... })', **kwargs)
       super(message, status_code: kwargs.fetch(:status_code, 401), **kwargs.except(:status_code))
+    end
+  end
 
-# step-1
+  class ForbiddenError < HTTPError
+    def initialize(message = 'Access to the requested resource was forbidden (HTTP 403)', **kwargs)
+      super(message, status_code: kwargs.fetch(:status_code, 403), **kwargs.except(:status_code))
+    end
+  end
+
+  class RateLimitError < HTTPError
+    attr_reader :retry_after
+
+    def initialize(message = 'Rate limited by Pinterest', retry_after: nil, **kwargs)
+      @retry_after = retry_after
+      super(message, status_code: kwargs.fetch(:status_code, 429), **kwargs.except(:status_code))
+    end
+  end
+
+  class RangeNotSatisfiableError < HTTPError
+    attr_reader :content_range
+
+    def initialize(message = 'Requested byte range is not satisfiable (HTTP 416)', content_range: nil, **kwargs)
+      @content_range = content_range
+      super(message, status_code: kwargs.fetch(:status_code, 416), **kwargs.except(:status_code))
+    end
+  end
+
+  class ServerError < HTTPError
+    def initialize(message = 'Pinterest server returned an error', **kwargs)
+      super
+    end
+  end
+
+# step-2
