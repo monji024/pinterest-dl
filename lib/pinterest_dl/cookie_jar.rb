@@ -209,5 +209,58 @@ module PinterestDL
       end
     rescue URI::InvalidURIError
       nil
+    end
 
-# step-3
+    def to_cookie_string(domain: 'https://www.pinterest.com')
+      header_for(domain, allow_local: true)
+    end
+
+    private
+
+    def parse_set_cookie(raw_line, uri)
+      segments = raw_line.to_s.split(';').map(&:strip).reject(&:empty?)
+      return nil if segments.empty?
+
+      first = segments.shift
+      name, value = first.split('=', 2)
+      return nil if name.nil? || value.nil? || name.strip.empty?
+
+      origin_host = Security.clean_host(uri.host)
+      attrs = {
+        name: name.strip,
+        value: value.strip,
+        domain: origin_host,
+        host_only: true,
+        path: default_cookie_path(uri.path),
+        secure: false,
+        http_only: false,
+        expires: nil,
+        same_site: nil
+      }
+
+      segments.each do |seg|
+        attr_name, attr_val = seg.split('=', 2)
+        key = attr_name.to_s.strip.downcase
+        val = attr_val&.strip
+        case key
+        when 'domain'
+          next if val.nil? || val.empty?
+
+          normalized = val.downcase.sub(/\A\./, '').chomp('.')
+          next unless domain_allowed_for_origin?(normalized, origin_host)
+
+          attrs[:domain] = normalized
+          attrs[:host_only] = false
+        when 'path'
+          attrs[:path] = val && val.start_with?('/') ? val : '/'
+        when 'secure'
+          attrs[:secure] = true
+        when 'httponly'
+          attrs[:http_only] = true
+        when 'max-age'
+          seconds = val.to_i
+          attrs[:expires] = seconds <= 0 ? Time.at(0) : Time.now + seconds
+        when 'expires'
+          attrs[:expires] = parse_expiry(val)
+
+# step-4
