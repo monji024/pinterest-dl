@@ -103,5 +103,58 @@ module PinterestDL
             domain: default_domain.sub(/\A\./, ''),
             host_only: false,
             path: '/',
+            secure: false,
+            http_only: false,
+            expires: nil,
+            same_site: nil
+          )
+          upsert_unlocked(cookie)
+        end
+      end
+    end
 
-# step-1
+    def load_netscape_file(file_path)
+      @mutex.synchronize do
+        File.foreach(file_path) do |line|
+          stripped = line.strip
+          next if stripped.empty?
+          if stripped.start_with?('#HttpOnly_')
+            stripped = stripped.sub(/\A#HttpOnly_/, '')
+            http_only = true
+          elsif stripped.start_with?('#')
+            next
+          else
+            http_only = false
+          end
+
+          fields = stripped.split("\t")
+          if fields.size >= 7
+            domain, include_subdomains, path, secure_flag, expiry_raw, name, value = fields
+            next unless Security.pinterest_host?(domain.sub(/\A\./, ''))
+
+            exp_int = expiry_raw.to_i
+            expires = exp_int.positive? ? Time.at(exp_int) : nil
+            cookie = Cookie.new(
+              name: name.strip,
+              value: value.to_s.strip,
+              domain: domain.sub(/\A\./, '').downcase,
+              host_only: include_subdomains.to_s.upcase != 'TRUE' && !domain.start_with?('.'),
+              path: path.to_s.empty? ? '/' : path.strip,
+              secure: secure_flag.to_s.upcase == 'TRUE',
+              http_only: http_only,
+              expires: expires,
+              same_site: nil
+            )
+            upsert_unlocked(cookie)
+          elsif stripped.include?('=') && !stripped.include?("\t")
+            stripped.split(';').each do |pair|
+              k, v = pair.strip.split('=', 2)
+              next if k.nil? || v.nil? || k.empty?
+
+              upsert_unlocked(
+                Cookie.new(
+                  name: k,
+                  value: v,
+                  domain: 'pinterest.com',
+
+# step-2
