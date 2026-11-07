@@ -73,5 +73,30 @@ module PinterestDL
     def quality=(value)
       value = value.to_sym
       valid = VALID_QUALITIES.join(', ')
+      raise ArgumentError, "quality must be one of: #{valid}" unless VALID_QUALITIES.include?(value)
 
-# step-2
+      @quality = value
+    end
+
+    def cookies=(value)
+      @cookie_jar = CookieJar.new
+      if value.nil? || value.to_s.strip.empty?
+        @cookies = nil
+        return
+      end
+
+      raw = value.to_s.strip
+      @cookie_jar.load_raw(raw)
+      @cookies = @cookie_jar.to_cookie_string
+      @cookies = nil if @cookies.empty?
+    end
+
+    def concurrency=(value)
+      num = value.to_i
+      raise ArgumentError, 'concurrency must be at least 1' if num < 1
+
+      @concurrency = num
+    end
+
+
+# step-3
