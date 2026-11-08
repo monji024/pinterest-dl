@@ -53,5 +53,32 @@ module PinterestDL
           "Rejected non-media Content-Type #{mime.inspect} from #{url}",
           url: url,
           content_type: mime
+        )
+      end
 
-# step-1
+      return true if ALLOWED_CONTENT_TYPES.include?(mime) || mime.start_with?('image/', 'video/')
+
+      raise InvalidMediaError.new(
+        "Unsupported Content-Type #{mime.inspect} from #{url}",
+        url: url,
+        content_type: mime
+      )
+    end
+
+    def detect_signature(bytes)
+      return nil if bytes.nil?
+
+      raw = bytes.b
+      return :jpeg if raw.start_with?(JPEG_MAGIC)
+      return :png if raw.start_with?(PNG_MAGIC)
+      return :gif if raw.start_with?(GIF87_MAGIC) || raw.start_with?(GIF89_MAGIC)
+      return :webp if raw.bytesize >= 12 && raw.start_with?(RIFF_MAGIC) && raw.byteslice(8, 4) == WEBP_MAGIC
+      return :bmp if raw.start_with?(BMP_MAGIC)
+      return :mp4 if raw.bytesize >= 8 && raw.byteslice(4, 4) == FTYP_MAGIC
+      return :webm if raw.start_with?(EBML_MAGIC)
+
+      nil
+    end
+
+
+# step-2
