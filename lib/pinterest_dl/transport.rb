@@ -229,5 +229,51 @@ module PinterestDL
       else
         backoff_delay(attempts)
       end
+    end
 
-# step-4
+    def check_response!(response, url)
+      code = response.code.to_i
+      case response
+      when Net::HTTPSuccess, Net::HTTPPartialContent
+        response
+      when Net::HTTPRequestedRangeNotSatisfiable
+        raise RangeNotSatisfiableError.new(
+          "Range not satisfiable for #{url} (HTTP 416)",
+          url: url,
+          status_code: 416,
+          content_range: response['Content-Range'] || response['content-range']
+        )
+      when Net::HTTPTooManyRequests
+        raise RateLimitError.new(
+          "Rate limited while requesting #{url} (HTTP 429)",
+          url: url,
+          status_code: 429,
+          retry_after: response['Retry-After']
+        )
+      when Net::HTTPUnauthorized
+        raise AuthenticationError.new("Authentication required for #{url} (HTTP 401)", url: url, status_code: 401)
+      when Net::HTTPForbidden
+        raise ForbiddenError.new("Request to #{url} was forbidden (HTTP 403)", url: url, status_code: 403)
+      when Net::HTTPNotFound, Net::HTTPGone
+        raise NotFoundError.new("Nothing found at #{url} (HTTP #{code})", url: url, status_code: code)
+      when Net::HTTPServerError
+        raise ServerError.new("Pinterest server error #{code} from #{url}", url: url, status_code: code)
+      else
+        if code == 416
+          raise RangeNotSatisfiableError.new(
+            "Range not satisfiable for #{url} (HTTP 416)",
+            url: url,
+            status_code: 416,
+            content_range: response['Content-Range'] || response['content-range']
+          )
+        end
+        raise NetworkError.new("Unexpected HTTP response #{code} from #{url}", url: url, status_code: code)
+      end
+    end
+
+    def build_http(uri)
+      http = build_proxy_http(uri)
+      if uri.scheme == 'https'
+        http.use_ssl = true
+
+# step-5
