@@ -47,5 +47,30 @@ module PinterestDL
       body = response.body
       store_cache(cache_key, [body, final_url]) if use_cache
       body
+    end
 
-# step-1
+    def raw_get(url, headers: {})
+      response = @transport.get(url, headers: headers)
+      @mutex.synchronize { @last_url = @transport.last_url }
+      response
+    end
+
+    def stream_get(url, headers: {}, &block)
+      raise ArgumentError, 'stream_get requires a block' unless block_given?
+
+      response = @transport.get(url, headers: headers) do |res|
+        if block.arity == 2
+          res.read_body { |chunk| block.call(chunk, res) }
+        else
+          res.read_body(&block)
+        end
+      end
+      @mutex.synchronize { @last_url = @transport.last_url }
+      response
+    end
+
+    def cookie(name, url = nil)
+      target = url || last_url || 'https://www.pinterest.com'
+      allow_local = @config.respond_to?(:allow_local_network) ? @config.allow_local_network : true
+
+# step-2
