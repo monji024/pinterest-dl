@@ -198,5 +198,104 @@ module PinterestDL
           when Array
             stack.concat(current)
           end
+        end
+        best
+      end
 
-# step-1
+      def parse_embedded_json(html)
+        each_script_payload(html).first
+      end
+
+      def find_pin_node(data, pin_id = nil)
+        matches = []
+        stack = [data]
+        until stack.empty?
+          node = stack.pop
+          case node
+          when Hash
+            if pin_id
+              node_id = (node['id'] || node['pin_id']).to_s
+              matches << node if node_id == pin_id.to_s && has_media?(node)
+            elsif pin_like?(node)
+              return node
+            end
+            stack.concat(node.values)
+          when Array
+            stack.concat(node)
+          end
+        end
+        matches.find { |n| first_video_url(n) } || matches.first
+      end
+
+      def pin_like?(node)
+        !best_image_url(node).nil?
+      end
+
+      def has_media?(node)
+        node['images'].is_a?(Hash) ||
+          node['images'].is_a?(Array) ||
+          node['videos'].is_a?(Hash) ||
+          node['story_pin_data'].is_a?(Hash) ||
+          node.key?('image_large_url')
+      end
+
+      def first_video_url(pin)
+        return nil unless pin.is_a?(Hash)
+
+        video_list = pin.dig('videos', 'video_list')
+        video_list = deep_find(pin['story_pin_data'], 'video_list') unless video_list.is_a?(Hash)
+        video_list = deep_find(pin['CloseupContent'], 'video_list') unless video_list.is_a?(Hash)
+        best_video(video_list)
+      end
+
+      def best_video(video_list)
+        return nil unless video_list.is_a?(Hash)
+
+        formats = video_list.values.select { |v| v.is_a?(Hash) && v['url'].is_a?(String) && !v['url'].empty? }
+        mp4s = formats.select { |v| v['url'].include?('.mp4') }
+        best = mp4s.max_by do |v|
+          area = v['width'].to_i * v['height'].to_i
+          area.positive? ? area : Video.score_video_url(v['url'])
+        end
+        return best['url'] if best
+
+        hls = formats.find { |v| v['url'].include?('.m3u8') }
+        hls && hls_to_mp4(hls['url'])
+      end
+
+      def hls_to_mp4(url)
+        if url.include?('/iht/hls/')
+          url.sub('/hls/', '/expMp4/').sub(/\.m3u8.*\z/, '_720w.mp4')
+        else
+          url.sub('/hls/', '/720p/').sub(/\.m3u8.*\z/, '.mp4')
+        end
+      end
+
+      def deep_find(node, key)
+        return nil unless node
+
+        stack = [node]
+        until stack.empty?
+          current = stack.pop
+          case current
+          when Hash
+            return current[key] if current[key].is_a?(Hash)
+
+            stack.concat(current.values)
+          when Array
+            stack.concat(current)
+          end
+        end
+        nil
+      end
+
+      def safe_parse(raw)
+        return nil if raw.nil?
+
+        JSON.parse(raw.to_s.strip)
+      rescue JSON::ParserError
+        nil
+      end
+    end
+  end
+end
