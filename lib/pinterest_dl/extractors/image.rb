@@ -49,5 +49,54 @@ module PinterestDL
 
       def from_open_graph(html)
         PinterestDL::Extractors::Meta.content(html, 'og:image') ||
+          PinterestDL::Extractors::Meta.content(html, 'twitter:image:src') ||
+          PinterestDL::Extractors::Meta.content(html, 'twitter:image')
+      end
 
-# step-0
+      def from_srcset(html)
+        candidates = []
+        html.to_s.scan(/srcset=["']([^"']+)["']/i).each do |(srcset)|
+          srcset.split(',').each do |entry|
+            parts = entry.strip.split(/\s+/)
+            url = parts[0]
+            next unless url && url.match?(%r{\Ahttps://i\d*\.pinimg\.com/}i)
+
+            scale = parts[1].to_s[/\A(\d+)[wx]\z/i, 1].to_i
+            candidates << [scale, url]
+          end
+        end
+        return nil if candidates.empty?
+
+        candidates.max_by(&:first).last
+      end
+
+      def from_raw_pattern(html)
+        matches = html.to_s.scan(PINIMG_URL_REGEX)
+        return nil if matches.empty?
+
+        matches.max_by { |u| score_url_quality(u) }
+      end
+
+      def score_url_quality(url)
+        bucket = url.to_s[%r{i\d*\.pinimg\.com/([^/]+)/}i, 1].to_s.downcase
+        return QUALITY_RANK[bucket] if QUALITY_RANK.key?(bucket)
+
+        if (m = bucket.match(/\A(\d+)x(\d+)?\z/))
+          w = m[1].to_i
+          h = (m[2] || m[1]).to_i
+          return [w * h / 10_000, 90].min
+        end
+        1
+      end
+
+      def apply_quality(url, quality)
+        return url unless url.to_s.match?(%r{i\d*\.pinimg\.com}i)
+
+        target = QUALITY_PATH[quality.to_sym]
+        return url unless target
+
+        url.sub(%r{/#{BUCKET_REGEX}/}, "/#{target}/")
+      end
+    end
+  end
+end
