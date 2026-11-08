@@ -57,5 +57,63 @@ module PinterestDL
         return 360 if str.include?('/360p/')
 
         100
+      end
 
-# step-0
+      def unescape(url)
+        url.to_s.gsub('\\u002F', '/').gsub('\\', '')
+      end
+    end
+
+    module Meta
+      module_function
+
+      def content(html, key)
+        escaped = Regexp.escape(key)
+        html.to_s.scan(/<meta\b[^>]*>/i).each do |tag|
+          next unless tag.match?(/\b(?:property|name|itemprop)\s*=\s*["']#{escaped}["']/i)
+
+          match = tag.match(/\bcontent\s*=\s*["']([^"']+)["']/i)
+          return match[1] if match
+        end
+        nil
+      end
+    end
+
+    module JsonLd
+      module_function
+
+      def content_url(html, type)
+        html.to_s.scan(%r{<script[^>]*type\s*=\s*["']application/ld\+json["'][^>]*>(.*?)</script>}mi).each do |(raw)|
+          found = find_type_url(safe_parse(raw), type)
+          return found if found
+        end
+        nil
+      end
+
+      def find_type_url(node, type)
+        stack = [node]
+        until stack.empty?
+          current = stack.pop
+          case current
+          when Hash
+            node_types = Array(current['@type']).map(&:to_s)
+            if node_types.include?(type)
+              url = current['contentUrl'] || current['url']
+              return url if url.is_a?(String) && !url.empty?
+            end
+            stack.concat(current.values)
+          when Array
+            stack.concat(current)
+          end
+        end
+        nil
+      end
+
+      def safe_parse(raw)
+        JSON.parse(raw.to_s.strip)
+      rescue JSON::ParserError
+        nil
+      end
+    end
+  end
+end
