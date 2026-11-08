@@ -22,5 +22,30 @@ module PinterestDL
 
     def last_url
       @mutex.synchronize { @last_url || @transport.last_url }
+    end
 
-# step-0
+    def get(url, headers: {}, use_cache: true)
+      cache_key = [url.to_s, headers].hash
+      if use_cache
+        cached = @mutex.synchronize do
+          if @cache.key?(cache_key)
+            val = @cache.delete(cache_key)
+            @cache[cache_key] = val
+            val
+          end
+        end
+        if cached
+          body, final_url = cached
+          @mutex.synchronize { @last_url = final_url }
+          return body
+        end
+      end
+
+      response = @transport.get(url, headers: headers)
+      final_url = @transport.last_url
+      @mutex.synchronize { @last_url = final_url }
+      body = response.body
+      store_cache(cache_key, [body, final_url]) if use_cache
+      body
+
+# step-1
