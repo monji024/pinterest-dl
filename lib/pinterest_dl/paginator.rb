@@ -51,5 +51,30 @@ module PinterestDL
         seen_bookmarks[bookmark_signature(next_bookmarks)] = true
         bookmarks = next_bookmarks
       end
+    end
 
-# step-1
+    def collect
+      to_a
+    end
+
+    private
+
+    def normalize_bookmarks(raw)
+      Array(raw).flatten.map { |b| b.to_s.strip }.reject(&:empty?)
+    end
+
+    def bookmark_signature(bookmarks)
+      bookmarks.join('|')
+    end
+
+    def stop?(bookmarks, seen_bookmarks, pages_fetched, raw_pins)
+      return true if pages_fetched >= @max_pages
+      return true if raw_pins.empty?
+      return true if bookmarks.empty?
+      return true if bookmarks.all? { |b| END_MARKERS.include?(b.downcase) }
+      return true if seen_bookmarks[bookmark_signature(bookmarks)]
+
+      false
+    end
+  end
+end
