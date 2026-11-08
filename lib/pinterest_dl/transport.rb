@@ -183,5 +183,51 @@ module PinterestDL
         end
         raise TimeoutError.new("Timed out requesting #{uri}: #{e.message}", url: uri.to_s, cause_error: e)
       rescue OpenSSL::SSL::SSLError => e
+        attempts += 1
+        if attempts <= max_retries
+          wait = backoff_delay(attempts)
+          msg = "SSL error requesting #{uri} (#{e.class}), retrying in #{wait.round(2)}s (#{attempts}/#{max_retries})"
+          @config.logger.warn(Security.redact(msg))
+          sleep(wait) if wait.positive?
+          retry
+        end
+        raise SSLError.new("SSL error connecting to #{uri}: #{e.message}", url: uri.to_s, cause_error: e)
+      rescue Errno::ECONNRESET, Errno::ECONNREFUSED, Errno::EHOSTUNREACH, Errno::ENETUNREACH,
+             Errno::EPIPE, SocketError, EOFError => e
+        attempts += 1
+        if attempts <= max_retries
+          wait = backoff_delay(attempts)
+          msg = "Connection to #{uri} failed (#{e.class}), retrying in #{wait.round(2)}s (#{attempts}/#{max_retries})"
+          @config.logger.warn(Security.redact(msg))
+          sleep(wait) if wait.positive?
+          retry
+        end
+        raise ConnectionError.new("Failed to reach #{uri}: #{e.message}", url: uri.to_s, cause_error: e)
+      end
+    end
 
-# step-3
+    def perform_request(http, req, &stream_block)
+      return http.request(req) unless stream_block
+
+      http.request(req) do |response|
+        if response.is_a?(Net::HTTPSuccess) || response.is_a?(Net::HTTPPartialContent)
+          stream_block.call(response)
+        end
+        return response
+      end
+    end
+
+    def retryable_response?(response)
+      RETRYABLE_HTTP_CODES.include?(response.code.to_s)
+    end
+
+    def retry_delay_for(response, attempts)
+      parsed = parse_retry_after(response['Retry-After'])
+      if parsed
+        max_wait = @config.respond_to?(:max_retry_wait) && @config.max_retry_wait ? @config.max_retry_wait.to_f : 60.0
+        [parsed, max_wait].min
+      else
+        backoff_delay(attempts)
+      end
+
+# step-4
