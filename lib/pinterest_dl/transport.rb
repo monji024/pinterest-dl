@@ -275,5 +275,50 @@ module PinterestDL
       http = build_proxy_http(uri)
       if uri.scheme == 'https'
         http.use_ssl = true
+        http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+      end
+      http.open_timeout = @config.open_timeout
+      http.read_timeout = @config.read_timeout
+      http.write_timeout = @config.write_timeout if http.respond_to?(:write_timeout=) && @config.respond_to?(:write_timeout)
+      http
+    end
 
-# step-5
+    def build_proxy_http(uri)
+      proxy_url = @config.respond_to?(:proxy) ? @config.proxy : nil
+      return Net::HTTP.new(uri.host, uri.port) if proxy_url.nil? || proxy_url.to_s.strip.empty?
+
+      p_uri = URI(proxy_url.to_s)
+      Net::HTTP.new(uri.host, uri.port, p_uri.host, p_uri.port, p_uri.user, p_uri.password)
+    rescue URI::InvalidURIError
+      Net::HTTP.new(uri.host, uri.port)
+    end
+
+    def default_headers(uri)
+      headers = {
+        'User-Agent' => @config.user_agent,
+        'Accept-Language' => 'en-US,en;q=0.9'
+      }
+      allow_local = @config.respond_to?(:allow_local_network) ? @config.allow_local_network : false
+      cookie_line = @cookie_jar.header_for(uri, allow_local: allow_local)
+      headers['Cookie'] = cookie_line unless cookie_line.empty?
+      headers
+    end
+
+    def throttle!
+      return if @config.rate_limit_interval.to_f <= 0
+
+      @mutex.synchronize do
+        if @last_request_at
+          elapsed = monotonic_now - @last_request_at
+          wait = @config.rate_limit_interval - elapsed
+          sleep(wait) if wait.positive?
+        end
+        @last_request_at = monotonic_now
+      end
+    end
+
+    def monotonic_now
+      Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    end
+  end
+end
