@@ -325,5 +325,115 @@ module PinterestDL
         )
         effective_offset = resumed_offset
         expected_body_bytes = range_info[:range_length]
+        final_total_size = range_info[:total_size] || (effective_offset + expected_body_bytes)
+        write_mode = 'ab'
+      else
+        effective_offset = 0
+        expected_body_bytes = content_length
+        final_total_size = content_length
+        write_mode = 'wb'
+      end
 
-# step-2
+      if max_size && final_total_size && final_total_size > max_size
+        raise FileTooLargeError.new(
+          "File at #{url} (#{final_total_size} bytes) exceeds max_file_size (#{max_size} bytes)",
+          url: url,
+          max_size: max_size,
+          actual_size: final_total_size
+        )
+      end
+
+      {
+        is_partial: is_partial,
+        effective_offset: effective_offset,
+        expected_body_bytes: expected_body_bytes,
+        final_total_size: final_total_size,
+        write_mode: write_mode
+      }
+    end
+
+    def parse_and_validate_content_range!(header_value, expected_offset:, content_length:, url:)
+      raw = header_value.to_s.strip
+      if raw.empty?
+        raise InvalidResponseError.new("Missing Content-Range header in HTTP 206 response from #{url}", url: url, status_code: 206)
+      end
+
+      match = raw.match(CONTENT_RANGE_REGEX)
+      unless match
+        raise InvalidResponseError.new("Malformed Content-Range header #{raw.inspect} from #{url}", url: url, status_code: 206)
+      end
+
+      range_start = match[1].to_i
+      range_end = match[2].to_i
+      total_token = match[3]
+      total_size = total_token == '*' ? nil : total_token.to_i
+
+      if range_start > range_end || (total_size && (total_size <= 0 || range_end >= total_size))
+        raise InvalidResponseError.new("Invalid byte range bounds in Content-Range #{raw.inspect} from #{url}", url: url, status_code: 206)
+      end
+
+      if range_start != expected_offset
+        raise InvalidResponseError.new(
+          "Content-Range start (#{range_start}) does not match requested offset (#{expected_offset}) from #{url}",
+          url: url,
+          status_code: 206
+        )
+      end
+
+      range_length = (range_end - range_start) + 1
+      if content_length && content_length != range_length
+        raise InvalidResponseError.new(
+          "Content-Length (#{content_length}) does not match Content-Range length (#{range_length}) from #{url}",
+          url: url,
+          status_code: 206
+        )
+      end
+
+      {
+        range_start: range_start,
+        range_end: range_end,
+        range_length: range_length,
+        total_size: total_size
+      }
+    end
+
+    def extract_header(response, name)
+      return nil unless response.respond_to?(:[])
+
+      response[name] || response[name.downcase] || response[name.split('-').map(&:capitalize).join('-')]
+    end
+
+    def stream_to_part(url, part_path, headers:, resumed_offset:, max_size:, max_speed:, verify_content:, progress_bar:, &on_progress)
+      plan = nil
+      received_body_bytes = 0
+      total_written = 0
+      file_handle = nil
+      started_at = monotonic_now
+
+      @client.stream_get(url, headers: headers) do |chunk, response|
+        if file_handle.nil?
+          plan = prepare_response_plan!(
+            response,
+            url: url,
+            resumed_offset: resumed_offset,
+            max_size: max_size,
+            verify_content: verify_content
+          )
+          total_written = plan[:effective_offset]
+          file_handle = File.open(part_path, plan[:write_mode])
+        end
+
+        chunk_size = chunk.bytesize
+        next_total = total_written + chunk_size
+        if max_size && next_total > max_size
+          raise FileTooLargeError.new(
+            "Download of #{url} exceeded max_file_size (#{max_size} bytes)",
+            url: url,
+            max_size: max_size,
+            actual_size: next_total
+          )
+        end
+
+        if plan[:expected_body_bytes] && (received_body_bytes + chunk_size) > plan[:expected_body_bytes]
+
+# step-3
