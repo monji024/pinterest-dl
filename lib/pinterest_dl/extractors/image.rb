@@ -1,15 +1,18 @@
 # frozen_string_literal: true
 
-
 module PinterestDL
   module Extractors
     module Image
       QUALITY_PATH = {
         originals: 'originals',
+        '1200x': '1200x',
         '736x': '736x',
+        '564x': '564x',
         '474x': '474x',
         '236x': '236x'
       }.freeze
+
+      BUCKET_REGEX = /(?:originals|1200x|736x|564x|474x|236x|\d+x\d*)/i.freeze
 
       module_function
 
@@ -30,18 +33,18 @@ module PinterestDL
 
       def from_raw_pattern(html)
         match = html.to_s.match(
-          %r{https://i\.pinimg\.com/(?:originals|736x|474x|236x)/[A-Za-z0-9_\-/]+\.(?:jpg|jpeg|png|gif|webp)}i
+          %r{https://i\d*\.pinimg\.com/(?:originals|1200x|736x|564x|474x|236x)/[A-Za-z0-9_\-/]+\.(?:jpg|jpeg|png|gif|webp)}i
         )
         match && match[0]
       end
 
       def apply_quality(url, quality)
-        return url unless url.to_s.include?('i.pinimg.com')
+        return url unless url.to_s.match?(%r{i\d*\.pinimg\.com}i)
 
         target = QUALITY_PATH[quality.to_sym]
         return url unless target
 
-        url.sub(%r{/(?:originals|736x|474x|236x)/}, "/#{target}/")
+        url.sub(%r{/#{BUCKET_REGEX}/}, "/#{target}/")
       end
     end
   end

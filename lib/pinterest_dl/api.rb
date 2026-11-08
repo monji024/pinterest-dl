@@ -53,18 +53,27 @@ module PinterestDL
       { image_url: image, video_url: video }
     end
 
-    def download(url, path:)
-      Downloader.new(config: config).download(url, path: path)
+    def download(url, path:, overwrite: nil)
+      Downloader.new(config: config).download(url, path: path, overwrite: overwrite)
     end
 
-    def download_batch(urls, dir:, filename: nil, &progress)
-      Downloader.new(config: config).download_batch(urls, dir: dir, filename: filename, &progress)
+    def download_batch(urls, dir:, filename: nil, concurrency: nil, overwrite: nil, &progress)
+      Downloader.new(config: config).download_batch(
+        urls,
+        dir: dir,
+        filename: filename,
+        concurrency: concurrency,
+        overwrite: overwrite,
+        &progress
+      )
     end
 
-    def search(query, limit: 25, pages: 5, type: :all, client: Client.new(config: config))
+    def search(query, limit: 25, pages: nil, type: :all, client: Client.new(config: config))
       type = MediaType.parse(type)
-      pages = [pages, 15].max unless type == :all
-      Search.new(client: client, config: config).call(query, limit: limit, pages: pages, type: type)
+      needed_pages = (limit.to_f / 25).ceil + 2
+      effective_pages = pages || [needed_pages, 5].max
+      effective_pages = [effective_pages, 15].max unless type == :all
+      Search.new(client: client, config: config).call(query, limit: limit, pages: effective_pages, type: type)
     end
 
     def search_json(query, limit: 25)
@@ -79,10 +88,12 @@ module PinterestDL
       search(query, limit: limit, type: :video).filter_map { |p| p[:video_url] }
     end
 
-    def board(board_url, limit: 50, pages: 10, type: :all, client: Client.new(config: config))
+    def board(board_url, limit: 50, pages: nil, type: :all, client: Client.new(config: config))
       type = MediaType.parse(type)
-      pages = [pages, 20].max unless type == :all
-      Board.new(client: client, config: config).call(board_url, limit: limit, pages: pages, type: type)
+      needed_pages = (limit.to_f / Board::PAGE_SIZE).ceil + 2
+      effective_pages = pages || [needed_pages, 10].max
+      effective_pages = [effective_pages, 20].max unless type == :all
+      Board.new(client: client, config: config).call(board_url, limit: limit, pages: effective_pages, type: type)
     end
 
     private
@@ -109,7 +120,6 @@ module PinterestDL
         'X-CSRFToken' => client.cookie('csrftoken') || 'undefined',
         'Referer' => "https://www.pinterest.com/pin/#{pin_id}/"
       }
-
       pin = JSON.parse(client.get(uri.to_s, headers: headers, use_cache: false)).dig('resource_response', 'data')
       return nil unless pin.is_a?(Hash)
 

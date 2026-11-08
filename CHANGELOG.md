@@ -3,15 +3,34 @@
 All notable changes to this project are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [2.3.0]
+
+### Added
+- `download_batch` now runs downloads in parallel using a thread pool (default 4 workers, configurable via `config.concurrency` or `-j/--jobs` on the CLI).
+- `cookies` in `PinterestDL.configure` (and `-c/--cookies` on the CLI) now accepts a path to a Netscape `cookies.txt` file in addition to a raw `key=val; ...` cookie string.
+- Added `1200x` and `564x` image quality buckets alongside `originals`, `736x`, `474x`, and `236x`.
+- `overwrite: false` on `download` / `download_batch` and `-s/--skip-existing` on the CLI to skip files that are already on disk when resuming a big board or search dump.
+- HTTP/HTTPS proxy support via `config.proxy` (defaults to `HTTPS_PROXY` / `HTTP_PROXY` env vars) and `--proxy` on the CLI, plus `--timeout` and `--retries` flags.
+- `Client#stream_get` for streaming large video responses straight to disk instead of buffering the whole file in memory.
+
+### Fixed
+- `search` and `board` had a hardcoded default of 5 and 10 pages, so passing `-n 200` on the CLI silently stopped around ~125 pins. Page count now scales automatically with `limit` unless `pages:` is passed explicitly.
+- Downloads now write to a temporary `.part` file first and atomically rename on completion, so a dropped connection or `Ctrl-C` mid-download doesn't leave half-written corrupt files behind.
+- `Client` only retried socket-level exceptions (`SocketError`, `Timeout::Error`, etc.) and immediately blew up on HTTP 429 or 502/503/504. Transient HTTP status codes are now retried too, respecting `Retry-After` when Pinterest sends one.
+- `Extractors::Image` missed numbered CDN hosts like `i0.pinimg.com` and `i1.pinimg.com` and didn't rewrite non-standard dimension buckets (e.g. `600x315`) when switching quality.
+- `Client` cache and cookie jar access are now guarded by a mutex so concurrent workers don't race each other, rate-limit throttling uses `CLOCK_MONOTONIC` instead of wall-clock `Time.now`, and the in-memory cache is capped (`max_cache_entries`, default 256) so long-running scripts don't leak memory.
+- Logger and `ProgressBar` output on the CLI now go to `stderr` instead of `stdout`, so piping `pinterest-dl search ... | jq .` doesn't get polluted by warnings or progress bars.
+- `Ctrl-C` (`SIGINT`) in the CLI now exits cleanly with code 130 instead of dumping a Ruby backtrace.
+
 ## [2.2.0]
 
 ### Fixed
-- `Board` and `Search` requests now send `X-Pinterest-Source-Url` and `X-Pinterest-AppState`, match slugs case-insensitively, deduplicate pins, apply `config.quality`, and fall back to SSR HTML pins.
-- `Search` creates a session once per search call instead of once per page and handles array `data` payloads.
-- `PinData` reads `<script data-relay-response="true">` blocks and non-`orig` image buckets.
-- `Client` normalizes country domains in its cookie jar, guards `cookie` when URL is nil, and raises `AuthenticationError` on HTTP 401.
-- `get_media` falls back to `PinResource` when page HTML is incomplete.
-- CLI supports `-v/--verbose`, `--version`, `media`, and applies `-q/--quality` globally.
+- `Board` and `Search` API calls were getting rejected on some endpoints because `X-Pinterest-Source-Url` and `X-Pinterest-AppState` headers were missing. Both are sent now, board slugs are matched case-insensitively, duplicate pins across pages are filtered out, `config.quality` is applied to returned URLs, and both fall back to SSR pins embedded in the HTML if the API feed comes back empty.
+- `Search` was hitting the search HTML page on every single pagination step to grab a session; it now establishes the session once per search call and also handles responses where `data` is a flat array instead of `{ results: [...] }`.
+- `PinData` now reads `<script data-relay-response="true">` blocks in addition to `__PWS_*__` tags, and picks the best available image when `orig` isn't present.
+- `Client` normalizes country subdomains (`de.pinterest.com`, `fr.pinterest.com`, etc.) in its cookie jar, guards `Client#cookie` when `@last_url` is nil, and raises `AuthenticationError` on HTTP 401.
+- `get_media` now falls back to `PinResource` when the initial pin HTML doesn't have both media URLs.
+- CLI: wired up `-v/--verbose`, `--version`, the `media` subcommand, and made `-q/--quality` apply globally.
 
 ## [2.1.5]
 
@@ -102,9 +121,8 @@ This project follows [Semantic Versioning](https://semver.org/).
   is now the single source of truth for the gem version.
 
 ### Fixed
-- The gem no longer prints anythign on `require`.
+- The gem no longer prints anything on `require`.
 
 ## [1.0.3]
-
 - Initial public release: `get_image_url`, `get_video_url`, `search`,
   `search_json`, `search_images`, `search_videos`.
