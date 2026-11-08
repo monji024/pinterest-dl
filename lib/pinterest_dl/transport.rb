@@ -90,5 +90,51 @@ module PinterestDL
     end
 
     def backoff_delay(attempt, base_wait: @config.retry_wait, max_wait: @config.max_retry_wait, jitter_ratio: @config.retry_jitter)
+      exp = [attempt.to_i - 1, 0].max
+      raw = base_wait.to_f * (2**exp)
+      capped = max_wait ? [raw, max_wait.to_f].min : raw
+      jitter_max = capped * jitter_ratio.to_f
+      jitter = jitter_max.positive? ? rand(0.0..jitter_max) : 0.0
+      [capped + jitter, max_wait ? max_wait.to_f : (capped + jitter)].min
+    end
 
-# step-1
+    def parse_retry_after(header_value, now: Time.now)
+      str = header_value.to_s.strip
+      return nil if str.empty?
+
+      if str.match?(/\A\d+(\.\d+)?\z/)
+        val = str.to_f
+        return [val, 0.0].max
+      end
+
+      target_time = Time.httpdate(str)
+      [target_time - now, 0.0].max
+    rescue ArgumentError
+      nil
+    end
+
+    private
+
+    class RetryableResponseSignal < StandardError; end
+    private_constant :RetryableResponseSignal
+
+    def validate_target_url!(raw_url)
+      allow_local = @config.respond_to?(:allow_local_network) ? @config.allow_local_network : false
+      https_only = @config.respond_to?(:https_only) ? @config.https_only : false
+      Security.parse_and_validate_url!(raw_url, allow_local: allow_local, https_only: https_only)
+    end
+
+    def resolve_redirect_uri!(source_uri, location)
+      target_str = URI.join(source_uri.to_s, location.to_s).to_s
+      allow_local = @config.respond_to?(:allow_local_network) ? @config.allow_local_network : false
+      https_only = @config.respond_to?(:https_only) ? @config.https_only : false
+      target_uri = Security.parse_and_validate_url!(target_str, allow_local: allow_local, https_only: https_only)
+
+      unless Security.allowed_redirect_target?(source_uri, target_uri, allow_local: allow_local)
+        raise RedirectError.new(
+          "Blocked cross-domain redirect from #{source_uri.host} to untrusted host #{target_uri.host}",
+          url: target_uri.to_s
+        )
+      end
+
+# step-2
