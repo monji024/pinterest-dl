@@ -80,5 +80,31 @@ module PinterestDL
       nil
     end
 
+    def looks_like_html_or_json?(bytes)
+      return false if bytes.nil?
 
-# step-2
+      head = bytes.b.byteslice(0, 256).to_s.lstrip
+      return false if head.empty?
+
+      head.start_with?('<!DOCTYPE', '<html', '<HTML', '<head', '<script', '{"error"', '{"status"')
+    end
+
+    def validate_file_content!(path, url: nil, strict_magic: false)
+      return false unless File.exist?(path)
+
+      size = File.size(path)
+      raise IncompleteDownloadError.new("Downloaded file at #{path} is empty (0 bytes)", url: url, received_bytes: 0) if size.zero?
+
+      header = File.binread(path, 256)
+      if looks_like_html_or_json?(header)
+        raise InvalidMediaError.new("Downloaded payload from #{url} appears to be HTML or JSON instead of media", url: url)
+      end
+
+      if strict_magic && detect_signature(header).nil?
+        raise InvalidMediaError.new("Unrecognized media file signature from #{url}", url: url)
+      end
+
+      true
+    end
+  end
+end
