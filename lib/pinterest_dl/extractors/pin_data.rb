@@ -98,5 +98,105 @@ module PinterestDL
 
         title = extract_text_field(raw['title']) || extract_text_field(raw['grid_title'])
         description = extract_text_field(raw['description']) || extract_text_field(raw['closeup_unified_description'])
+        creator = extract_creator(raw)
 
-# step-0
+        {
+          id: id.to_s,
+          pin_url: "https://www.pinterest.com/pin/#{id}/",
+          title: title,
+          description: description,
+          creator: creator,
+          image_url: img && PinterestDL::Extractors::Image.apply_quality(img, quality),
+          video_url: video
+        }
+      end
+
+      def build_result(pin)
+        {
+          image_url: best_image_url(pin),
+          video_url: first_video_url(pin),
+          title: extract_text_field(pin['title']) || extract_text_field(pin['grid_title']),
+          description: extract_text_field(pin['description']) || extract_text_field(pin['closeup_unified_description']),
+          creator: extract_creator(pin)
+        }
+      end
+
+      def extract_text_field(val)
+        case val
+        when String then val
+        when Hash then val['text'] || val['format']
+        end
+      end
+
+      def extract_creator(pin)
+        pin.dig('pinner', 'username') ||
+          pin.dig('pinner', 'full_name') ||
+          pin.dig('native_creator', 'username') ||
+          pin.dig('origin_pinner', 'username')
+      end
+
+      def best_image_url(pin)
+        return nil unless pin.is_a?(Hash)
+
+        orig = pin.dig('images', 'orig', 'url') || pin.dig('images', 'originals', 'url')
+        return orig if orig.is_a?(String) && !orig.empty?
+
+        images = pin['images'] || pin['image_spec']
+        if images.is_a?(Hash)
+          candidates = images.filter_map do |bucket_key, entry|
+            next unless entry.is_a?(Hash) && entry['url'].is_a?(String) && !entry['url'].empty?
+
+            [score_image_variant(bucket_key.to_s, entry), entry['url']]
+          end
+          return candidates.max_by(&:first).last unless candidates.empty?
+        elsif images.is_a?(Array)
+          candidates = images.filter_map do |entry|
+            next unless entry.is_a?(Hash) && entry['url'].is_a?(String) && !entry['url'].empty?
+
+            [score_image_variant('', entry), entry['url']]
+          end
+          return candidates.max_by(&:first).last unless candidates.empty?
+        end
+
+        story_img = deep_find_image(pin['story_pin_data'])
+        return story_img if story_img
+
+        pin['image_large_url'] || pin['image_medium_url']
+      end
+
+      def score_image_variant(bucket_key, entry)
+        key = bucket_key.to_s.downcase
+        priority = IMAGE_BUCKET_PRIORITY[key] || 0
+        width = entry['width'].to_i
+        height = entry['height'].to_i
+        area = width.positive? && height.positive? ? (width * height) : 0
+        url_score = Image.score_url_quality(entry['url']) * 1_000
+        priority + area + url_score
+      end
+
+      def deep_find_image(node)
+        return nil unless node
+
+        stack = [node]
+        best = nil
+        best_score = -1
+        until stack.empty?
+          current = stack.pop
+          case current
+          when Hash
+            if current['images'].is_a?(Hash)
+              url = best_image_url(current)
+              if url
+                score = Image.score_url_quality(url)
+                if score > best_score
+                  best = url
+                  best_score = score
+                end
+              end
+            end
+            stack.concat(current.values)
+          when Array
+            stack.concat(current)
+          end
+
+# step-1
