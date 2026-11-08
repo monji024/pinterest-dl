@@ -435,5 +435,114 @@ module PinterestDL
         end
 
         if plan[:expected_body_bytes] && (received_body_bytes + chunk_size) > plan[:expected_body_bytes]
+          raise InvalidResponseError.new(
+            "Received more bytes than declared in Content-Range/Content-Length from #{url}",
+            url: url
+          )
+        end
 
-# step-3
+        file_handle.write(chunk)
+        received_body_bytes += chunk_size
+        total_written = next_total
+
+        throttle_bandwidth(received_body_bytes, started_at, max_speed) if max_speed
+        report_chunk_progress(total_written, plan[:final_total_size], started_at, url, progress_bar, &on_progress)
+      end
+
+      if file_handle.nil?
+        File.binwrite(part_path, '')
+      else
+        file_handle.flush
+        file_handle.close
+        file_handle = nil
+      end
+
+      verify_received_length!(plan, received_body_bytes, url: url) if plan
+      total_written
+    ensure
+      file_handle&.close unless file_handle&.closed?
+    end
+
+    def direct_to_part(url, part_path, headers:, resumed_offset:, max_size:, verify_content:, progress_bar:, &on_progress)
+      response = headers.empty? ? @client.raw_get(url) : @client.raw_get(url, headers: headers)
+      plan = prepare_response_plan!(
+        response,
+        url: url,
+        resumed_offset: resumed_offset,
+        max_size: max_size,
+        verify_content: verify_content
+      )
+
+      body = response.body.to_s
+      received_body_bytes = body.bytesize
+      total_written = plan[:effective_offset] + received_body_bytes
+
+      if max_size && total_written > max_size
+        raise FileTooLargeError.new(
+          "File at #{url} (#{total_written} bytes) exceeds max_file_size (#{max_size} bytes)",
+          url: url,
+          max_size: max_size,
+          actual_size: total_written
+        )
+      end
+
+      verify_received_length!(plan, received_body_bytes, url: url)
+
+      File.open(part_path, plan[:write_mode]) do |f|
+        f.write(body)
+      end
+
+      progress_bar&.update(total_written, bytes_received: total_written, total_bytes: total_written)
+      on_progress&.call(total_written, total_written, url)
+      total_written
+    end
+
+    def verify_received_length!(plan, received_body_bytes, url:)
+      expected_body = plan[:expected_body_bytes]
+      return unless expected_body
+
+      if received_body_bytes < expected_body
+        expected_total = plan[:effective_offset] + expected_body
+        received_total = plan[:effective_offset] + received_body_bytes
+        raise IncompleteDownloadError.new(
+          "Incomplete download from #{url}: expected #{expected_total} bytes, got #{received_total}",
+          url: url,
+          expected_bytes: expected_total,
+          received_bytes: received_total
+        )
+      elsif received_body_bytes > expected_body
+        raise InvalidResponseError.new(
+          "Response body length (#{received_body_bytes}) exceeded declared length (#{expected_body}) from #{url}",
+          url: url
+        )
+      end
+    end
+
+    def throttle_bandwidth(bytes_transferred, started_at, max_speed)
+      return if max_speed.nil? || max_speed <= 0 || bytes_transferred <= 0
+
+      elapsed = monotonic_now - started_at
+      expected_time = bytes_transferred.to_f / max_speed
+      sleep_time = expected_time - elapsed
+      sleep(sleep_time) if sleep_time > 0.005
+    end
+
+    def report_chunk_progress(received, total_bytes, started_at, url, progress_bar, &on_progress)
+      elapsed = [monotonic_now - started_at, 0.001].max
+      speed = received.to_f / elapsed
+      progress_bar&.update(received, bytes_received: received, total_bytes: total_bytes, speed: speed)
+      return unless on_progress
+
+      case on_progress.arity
+      when 1
+        on_progress.call({ received: received, total: total_bytes, speed: speed, url: url })
+      when 2
+        on_progress.call(received, total_bytes)
+      else
+        on_progress.call(received, total_bytes, url)
+      end
+    end
+
+    def atomic_move!(part_path, path)
+
+# step-4
