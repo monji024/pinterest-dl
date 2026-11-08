@@ -103,5 +103,109 @@ module PinterestDL
       mins = (sec % 3600) / 60
       rem = sec % 60
       if hours.positive?
+        format('%<h>02d:%<m>02d:%<s>02d', h: hours, m: mins, s: rem)
+      else
+        format('%<m>02d:%<s>02d', m: mins, s: rem)
+      end
+    end
 
-# step-0
+    def self.truncate_label(text, max_len: MAX_LABEL_LENGTH)
+      str = text.to_s
+      return str if str.length <= max_len || max_len < 6
+
+      ext = File.extname(str)
+      if !ext.empty? && ext.length < max_len - 4
+        keep = max_len - ext.length - 2
+        head = [keep - 3, 3].max
+        tail = [keep - head, 1].max
+        stem = File.basename(str, ext)
+        "#{stem[0, head]}..#{stem[-tail, tail]}#{ext}"
+      else
+        "#{str[0, max_len - 2]}.."
+      end
+    end
+
+    private
+
+    def render_item_progress(done, label: nil, media_type: nil)
+      ratio = [[done.to_f / @total, 0.0].max, 1.0].min
+      filled = (@width * ratio).round
+      bar = ('#' * filled) + ('-' * (@width - filled))
+      pct = ((done.to_f / @total) * 100).round
+      badge = media_type ? "[#{media_type.to_s.upcase}] " : ''
+      short_label = label && !label.empty? ? " #{self.class.truncate_label(label)}" : ''
+      line = "#{badge}[#{bar}] #{done}/#{@total} (#{pct}%)#{short_label}"
+      write_in_place(line, newline: done >= @total)
+    end
+
+    def render_byte_progress(received, total_bytes, speed: nil, label: nil, media_type: nil, force_complete: false)
+      return if @finished_newline && !force_complete
+
+      elapsed = [monotonic_now - @started_at, 0.001].max
+      current_speed = speed || (received.to_f / elapsed)
+      speed_str = "#{self.class.format_bytes(current_speed)}/s"
+      badge = media_type ? "[#{media_type.to_s.upcase}] " : ''
+      short_label = label && !label.empty? ? "#{self.class.truncate_label(label)} " : ''
+
+      if total_bytes && total_bytes.positive?
+        ratio = force_complete ? 1.0 : [[received.to_f / total_bytes, 0.0].max, 1.0].min
+        pct = (ratio * 100).round
+        remaining = [total_bytes - received, 0].max
+        eta_sec = current_speed.positive? ? (remaining.to_f / current_speed) : nil
+        eta_str = ratio >= 1.0 ? '00:00' : self.class.format_eta(eta_sec)
+        size_str = "#{self.class.format_bytes(received)}/#{self.class.format_bytes(total_bytes)}"
+        tail = " #{pct}% #{size_str} #{speed_str} ETA #{eta_str}"
+        eff_width = adaptive_bar_width(badge.length + short_label.length + tail.length + 2)
+        filled = (eff_width * ratio).round
+        bar = ('#' * filled) + ('-' * (eff_width - filled))
+        line = "#{badge}#{short_label}[#{bar}]#{tail}"
+        write_in_place(line, newline: received >= total_bytes || force_complete)
+      else
+        size_str = self.class.format_bytes(received)
+        line = "#{badge}#{short_label}#{size_str} #{speed_str}"
+        write_in_place(line, newline: force_complete)
+      end
+    end
+
+    def adaptive_bar_width(non_bar_len)
+      cols = detect_terminal_columns
+      return @width unless cols && cols.positive?
+
+      available = cols - non_bar_len - 1
+      [[available, 6].max, @width].min
+    end
+
+    def detect_terminal_columns
+      if @out.respond_to?(:winsize)
+        cols = @out.winsize[1].to_i
+        return cols if cols.positive?
+      end
+      env_cols = ENV['COLUMNS'].to_i
+      return env_cols if env_cols.positive?
+
+      nil
+    rescue StandardError
+      nil
+    end
+
+    def write_in_place(line, newline: false)
+      cols = detect_terminal_columns
+      clipped = cols && cols > 10 && line.length >= cols ? line[0, cols - 1] : line
+      pad_count = [@last_line_len - clipped.length, 0].max
+      padded = pad_count.positive? ? "#{clipped}#{' ' * pad_count}" : clipped
+      @last_line_len = clipped.length
+
+      @out.print "\r#{padded}"
+      if newline
+        @out.print "\n"
+        @finished_newline = true
+        @last_line_len = 0
+      end
+      @out.flush
+    end
+
+    def monotonic_now
+      Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    end
+  end
+end
