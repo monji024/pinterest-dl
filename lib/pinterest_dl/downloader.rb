@@ -653,5 +653,114 @@ module PinterestDL
 
       threads = Array.new(workers) do
         Thread.new do
+          Thread.current.report_on_exception = false
+          while (work = queue.pop)
+            item, index = work
+            url = extract_item_url(item)
+            path = nil
+            outcome = nil
+            err = nil
+            file_bytes = 0
+            was_resumed = false
 
-# step-5
+            begin
+              norm_url = normalize_media_url(url)
+              is_dup = mutex.synchronize do
+                if deduplicate && !norm_url.empty? && seen_urls[norm_url]
+                  true
+                else
+                  seen_urls[norm_url] = true unless norm_url.empty?
+                  false
+                end
+              end
+
+              if is_dup
+                _, path = resolve_target(item, index, dir, filename)
+                outcome = :duplicate
+              else
+                url, path, action = resolve_unique_target(item, index, dir, filename, collision_strategy: collision_strategy)
+                if action == :skip
+                  outcome = :skipped
+                else
+                  lock = file_lock_for(path)
+                  lock.synchronize do
+                    was_resumed = should_resume && File.exist?("#{path}.part") && File.size("#{path}.part").positive?
+                    download(url, path: path, overwrite: true, resume: should_resume, max_size: max_size, max_speed: max_speed)
+                    file_bytes = File.size(path) if File.exist?(path)
+                  end
+                  outcome = :succeeded
+                end
+              end
+            rescue PinterestDL::Error => e
+              err = e
+              outcome = :failed
+            rescue StandardError => e
+              err = DownloadError.new("Worker failure downloading #{url}: #{e.message}", url: url, cause_error: e)
+              outcome = :failed
+            end
+
+            @config.logger.warn(Security.redact("failed to download #{url}: #{err.message}")) if outcome == :failed && err
+
+            current_done = mutex.synchronize do
+              case outcome
+              when :duplicate
+                duplicates << url
+                skipped << path if path
+              when :skipped
+                skipped << path
+                succeeded << path
+              when :succeeded
+                resumed << path if was_resumed
+                succeeded << path
+                bytes_total += file_bytes
+              when :failed
+                failed << { url: url, error: err }
+              end
+              done_count += 1
+              done_count
+            end
+
+            safe_invoke_progress(progress, current_done, total, url)
+          end
+        end
+      end
+
+      threads.each(&:join)
+      DownloadReport.new(
+        succeeded: succeeded,
+        failed: failed,
+        skipped: skipped,
+        resumed: resumed,
+        duplicates: duplicates,
+        bytes_downloaded: bytes_total,
+        elapsed_seconds: monotonic_now - started_at
+      )
+    end
+
+    def safe_invoke_progress(progress, done, total, url)
+      return unless progress
+
+      progress.call(done, total, url)
+    rescue StandardError => e
+      @config.logger.warn(Security.redact("progress callback error for #{url}: #{e.message}"))
+    end
+
+    def file_lock_for(path)
+      @path_mutex.synchronize { @file_locks[path] }
+    end
+
+    def file_present_on_disk?(path)
+      File.exist?(path) && File.size(path).positive?
+    end
+
+    def find_next_available_path(base_path)
+      ext = File.extname(base_path)
+      stem = File.basename(base_path, ext)
+      parent = File.dirname(base_path)
+      counter = 1
+      candidate = File.join(parent, "#{stem}_#{counter}#{ext}")
+      while @reserved_paths[candidate] || file_present_on_disk?(candidate) || File.exist?("#{candidate}.part")
+        counter += 1
+        candidate = File.join(parent, "#{stem}_#{counter}#{ext}")
+
+# step-6
