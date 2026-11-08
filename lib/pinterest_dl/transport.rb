@@ -137,4 +137,51 @@ module PinterestDL
         )
       end
 
-# step-2
+      target_uri
+    rescue URI::InvalidURIError => e
+      raise RedirectError.new("Invalid redirect location #{location.inspect}", url: source_uri.to_s, cause_error: e)
+    end
+
+    def sanitize_redirect_headers(source_uri, target_uri, headers)
+      return headers if Security.same_security_domain?(source_uri, target_uri)
+
+      headers.reject do |k, _|
+        SENSITIVE_REDIRECT_HEADERS.any? { |s| s.casecmp?(k.to_s) }
+      end
+    end
+
+    def request_with_retries(uri, headers: {}, &stream_block)
+      attempts = 0
+      max_retries = @config.max_retries.to_i
+      begin
+        throttle!
+        http = build_http(uri)
+        req = Net::HTTP::Get.new(uri, default_headers(uri).merge(headers))
+        response = perform_request(http, req, &stream_block)
+
+        if retryable_response?(response) && attempts < max_retries
+          attempts += 1
+          wait = retry_delay_for(response, attempts)
+          @config.logger.warn(
+            Security.redact("HTTP #{response.code} from #{uri}, retrying in #{wait.round(2)}s (#{attempts}/#{max_retries})")
+          )
+          sleep(wait) if wait.positive?
+          raise RetryableResponseSignal
+        end
+
+        response
+      rescue RetryableResponseSignal
+        retry
+      rescue Net::OpenTimeout, Net::ReadTimeout, Net::WriteTimeout, Timeout::Error, Errno::ETIMEDOUT => e
+        attempts += 1
+        if attempts <= max_retries
+          wait = backoff_delay(attempts)
+          msg = "Timeout requesting #{uri} (#{e.class}), retrying in #{wait.round(2)}s (#{attempts}/#{max_retries})"
+          @config.logger.warn(Security.redact(msg))
+          sleep(wait) if wait.positive?
+          retry
+        end
+        raise TimeoutError.new("Timed out requesting #{uri}: #{e.message}", url: uri.to_s, cause_error: e)
+      rescue OpenSSL::SSL::SSLError => e
+
+# step-3
