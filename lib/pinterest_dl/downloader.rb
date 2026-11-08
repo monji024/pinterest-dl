@@ -2,6 +2,11 @@
 
 require 'fileutils'
 require 'uri'
+require_relative 'errors'
+require_relative 'models'
+require_relative 'media_validator'
+require_relative 'progress_bar'
+require_relative 'security'
 
 module PinterestDL
   class Downloader
@@ -10,186 +15,97 @@ module PinterestDL
       'image/png' => '.png',
       'image/gif' => '.gif',
       'image/webp' => '.webp',
+      'image/avif' => '.avif',
       'video/mp4' => '.mp4',
-      'video/quicktime' => '.mov'
+      'video/quicktime' => '.mov',
+      'video/webm' => '.webm'
     }.freeze
+
+    SPEED_MULTIPLIERS = {
+      '' => 1,
+      'b' => 1,
+      'k' => 1024,
+      'kb' => 1024,
+      'm' => 1024 * 1024,
+      'mb' => 1024 * 1024,
+      'g' => 1024 * 1024 * 1024,
+      'gb' => 1024 * 1024 * 1024
+    }.freeze
+
+    VALID_COLLISION_STRATEGIES = %i[rename skip overwrite].freeze
+
+    TRACKING_QUERY_PARAMS = %w[
+      utm_source utm_medium utm_campaign utm_term utm_content
+      fbclid gclid _ga mc_cid mc_eid
+    ].freeze
+
+    CONTENT_RANGE_REGEX = /\Abytes\s+(\d+)-(\d+)\/(\d+|\*)\z/i.freeze
+    UNSATISFIED_RANGE_REGEX = /\Abytes\s+\*\/(\d+)\z/i.freeze
 
     def initialize(client: PinterestDL::Client.new, config: PinterestDL.config)
       @client = client
       @config = config
+      @path_mutex = Mutex.new
+      @reserved_paths = {}
+      @file_locks = Hash.new { |h, k| h[k] = Mutex.new }
     end
 
-    def download(url, path:, overwrite: nil)
+    def download(url, path:, overwrite: nil, resume: nil, max_size: nil, max_speed: nil,
+                 verify_content: nil, collision_strategy: nil, progress_bar: nil, &on_progress)
       raise ArgumentError, 'url must not be nil/empty' if url.to_s.strip.empty?
       raise ArgumentError, 'path must not be nil/empty' if path.to_s.strip.empty?
 
-      should_overwrite = overwrite.nil? ? (@config.respond_to?(:overwrite) ? @config.overwrite : true) : overwrite
-      return path if !should_overwrite && File.exist?(path) && File.size(path).positive?
+      validate_download_url!(url)
+      strategy = validate_collision_strategy!(collision_strategy) if collision_strategy
+      should_overwrite = resolve_bool(overwrite, :overwrite, true)
+      should_resume = resolve_bool(resume, :resume, false)
+      size_limit = max_size || (@config.respond_to?(:max_file_size) ? @config.max_file_size : nil)
+      speed_limit = parse_speed_limit(max_speed || (@config.respond_to?(:max_speed) ? @config.max_speed : nil))
+      should_verify = resolve_bool(verify_content, :verify_content_type, true)
 
-      FileUtils.mkdir_p(File.dirname(path))
-      part_path = "#{path}.part.#{Process.pid}.#{Thread.current.object_id}"
+      target_path = path
+      if file_present_on_disk?(target_path)
+        if strategy == :skip || (strategy.nil? && !should_overwrite)
+          return target_path
+        elsif strategy == :rename
+          target_path = find_next_available_path(target_path)
+        end
+      end
 
-      write_to_part(url, part_path)
-      File.rename(part_path, path)
-      path
+      ensure_writable_directory!(File.dirname(target_path))
+      part_path = build_part_path(target_path, resumable: should_resume)
+      resumed_offset = should_resume && File.exist?(part_path) ? File.size(part_path) : 0
+
+      progress_bar&.start
+      bytes_written = perform_download_with_416_recovery(
+        url,
+        part_path,
+        resumed_offset: resumed_offset,
+        max_size: size_limit,
+        max_speed: speed_limit,
+        verify_content: should_verify,
+        progress_bar: progress_bar,
+        &on_progress
+      )
+      progress_bar&.finish(final_bytes: bytes_written)
+
+      if should_verify && bytes_written.positive?
+        MediaValidator.validate_file_content!(part_path, url: url)
+      end
+
+      atomic_move!(part_path, target_path)
+      target_path
+    rescue ArgumentError
+      cleanup_part(part_path)
+      raise
+    rescue IncompleteDownloadError
+      cleanup_part(part_path) unless should_resume
+      raise
     rescue PinterestDL::Error
       cleanup_part(part_path)
       raise
-    rescue StandardError => e
+    rescue Errno::ENOSPC, Errno::EDQUOT => e
       cleanup_part(part_path)
-      raise PinterestDL::DownloadError, "Could not download #{url} to #{path}: #{e.message}"
-    end
+      raise DiskSpaceError.new("Insufficient disk space while saving #{target_path}: #{e.message}", url: url, cause_error: e)
 
-    def download_batch(urls, dir:, filename: nil, concurrency: nil, overwrite: nil, &progress)
-      FileUtils.mkdir_p(dir)
-      total = urls.size
-      return { succeeded: [], failed: [], skipped: [] } if total.zero?
-
-      workers = resolve_concurrency(concurrency, total)
-      return sequential_batch(urls, dir: dir, filename: filename, overwrite: overwrite, &progress) if workers <= 1
-
-      concurrent_batch(urls, dir: dir, filename: filename, workers: workers, overwrite: overwrite, &progress)
-    end
-
-    private
-
-    def write_to_part(url, part_path)
-      if @client.respond_to?(:stream_get)
-        File.open(part_path, 'wb') do |file|
-          @client.stream_get(url) { |chunk| file.write(chunk) }
-        end
-      else
-        response = @client.raw_get(url)
-        File.binwrite(part_path, response.body)
-      end
-    end
-
-    def cleanup_part(part_path)
-      FileUtils.rm_f(part_path) if part_path && File.exist?(part_path)
-    end
-
-    def resolve_concurrency(concurrency, total)
-      return 1 unless @client.is_a?(PinterestDL::Client)
-
-      configured = concurrency || (@config.respond_to?(:concurrency) ? @config.concurrency : 1)
-      [[configured.to_i, 1].max, total].min
-    end
-
-    def sequential_batch(urls, dir:, filename:, overwrite:, &progress)
-      succeeded = []
-      failed = []
-      skipped = []
-      total = urls.size
-      should_overwrite = overwrite.nil? ? (@config.respond_to?(:overwrite) ? @config.overwrite : true) : overwrite
-
-      urls.each_with_index do |item, index|
-        url, path = resolve_target(item, index, dir, filename)
-        begin
-          if !should_overwrite && File.exist?(path) && File.size(path).positive?
-            skipped << path
-            succeeded << path
-          else
-            download(url, path: path, overwrite: true)
-            succeeded << path
-          end
-        rescue PinterestDL::Error => e
-          @config.logger.warn("failed to download #{url}: #{e.message}")
-          failed << { url: url, error: e }
-        end
-        progress&.call(index + 1, total, url)
-      end
-
-      { succeeded: succeeded, failed: failed, skipped: skipped }
-    end
-
-    def concurrent_batch(urls, dir:, filename:, workers:, overwrite:, &progress)
-      queue = Queue.new
-      urls.each_with_index { |item, index| queue << [item, index] }
-      workers.times { queue << nil }
-
-      succeeded = []
-      failed = []
-      skipped = []
-      done_count = 0
-      total = urls.size
-      mutex = Mutex.new
-      should_overwrite = overwrite.nil? ? (@config.respond_to?(:overwrite) ? @config.overwrite : true) : overwrite
-
-      threads = Array.new(workers) do
-        Thread.new do
-          while (work = queue.pop)
-            item, index = work
-            url, path = resolve_target(item, index, dir, filename)
-            outcome = nil
-            err = nil
-
-            begin
-              if !should_overwrite && File.exist?(path) && File.size(path).positive?
-                outcome = :skipped
-              else
-                download(url, path: path, overwrite: true)
-                outcome = :succeeded
-              end
-            rescue PinterestDL::Error => e
-              err = e
-              outcome = :failed
-            end
-
-            mutex.synchronize do
-              case outcome
-              when :skipped
-                skipped << path
-                succeeded << path
-              when :succeeded
-                succeeded << path
-              when :failed
-                @config.logger.warn("failed to download #{url}: #{err.message}")
-                failed << { url: url, error: err }
-              end
-              done_count += 1
-              progress&.call(done_count, total, url)
-            end
-          end
-        end
-      end
-
-      threads.each(&:join)
-      { succeeded: succeeded, failed: failed, skipped: skipped }
-    end
-
-    def resolve_target(item, index, dir, filename)
-      if item.is_a?(Hash)
-        url = item[:video_url] || item[:image_url] || item[:url]
-        name = filename ? filename.call(url, index) : pin_filename(item, url, index)
-      else
-        url = item
-        name = filename ? filename.call(url, index) : default_filename(url, index)
-      end
-      [url, File.join(dir, sanitize_filename(name))]
-    end
-
-    def pin_filename(pin, url, index)
-      ext = extract_ext(url)
-      id = pin[:id].to_s.strip
-      return default_filename(url, index) if id.empty?
-
-      format('%<index>04d_%<id>s%<ext>s', index: index + 1, id: id, ext: ext)
-    end
-
-    def default_filename(url, index)
-      format('%<index>04d%<ext>s', index: index + 1, ext: extract_ext(url))
-    end
-
-    def extract_ext(url)
-      ext = File.extname(URI(url.to_s).path.to_s)[/\A\.[A-Za-z0-9]{2,5}\z/]
-      ext || '.jpg'
-    rescue URI::InvalidURIError
-      '.jpg'
-    end
-
-    def sanitize_filename(name)
-      clean = File.basename(name.to_s.strip).gsub(/[\x00\/\\:*?"<>|]/, '_')
-      clean.empty? ? 'download.jpg' : clean
-    end
-  end
-end
+# step-0
