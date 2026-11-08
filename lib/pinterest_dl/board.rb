@@ -83,5 +83,89 @@ module PinterestDL
         end
       end
       html.to_s[/"board_id"\s*:\s*"(\d+)"/, 1]
+    end
 
-# step-0
+    def board_node?(node, slug)
+      node['type'] == 'board' && node['id'].to_s.match?(/\A\d+\z/) &&
+        node['url'].to_s.downcase.include?("/#{slug.to_s.downcase}/")
+    end
+
+    def find_board_id(username, slug)
+      json = call_resource('BoardResource', username: username, slug: slug, field_set_key: 'detailed')
+      data = json.dig('resource_response', 'data')
+      id = data.is_a?(Hash) && data['id']
+      raise PinterestDL::NotFoundError, "Board not found: #{username}/#{slug} (private boards need --cookies)" unless id
+
+      id.to_s
+    end
+
+    def feed_request(board_id, section)
+      @section = section
+      unless section
+        options = {
+          board_id: board_id,
+          field_set_key: 'react_grid_pin',
+          filter_section_pins: true,
+          sort: 'default',
+          layout: 'default',
+          page_size: PAGE_SIZE,
+          redux_normalize_feed: true
+        }
+        return ['BoardFeedResource', options]
+      end
+
+      ['BoardSectionPinsResource', { section_id: find_section_id(board_id, section), page_size: PAGE_SIZE }]
+    end
+
+    def find_section_id(board_id, slug)
+      json = call_resource('BoardSectionsResource', board_id: board_id)
+      data = json.dig('resource_response', 'data')
+      found = data.is_a?(Array) && data.find { |s| s.is_a?(Hash) && s['slug'].to_s.casecmp?(slug.to_s) }
+      raise PinterestDL::NotFoundError, "Section not found: #{slug}" unless found
+
+      found['id']
+    end
+
+    def fetch_page(resource, options, bookmarks)
+      req_options = bookmarks && !bookmarks.empty? ? options.merge(bookmarks: bookmarks) : options
+      json = call_resource(resource, req_options)
+
+      data = json.dig('resource_response', 'data')
+      pins = data.is_a?(Array) ? data.filter_map { |r| build_pin(r) } : []
+      next_bookmarks = json.dig('resource_response', 'bookmark') ||
+                       json.dig('resource', 'options', 'bookmarks')
+      { pins: pins, bookmarks: Array(next_bookmarks) }
+    end
+
+    def call_resource(name, options)
+      data = { options: options, context: {} }.to_json
+      uri = URI("https://#{@host}/resource/#{name}/get/")
+      uri.query = URI.encode_www_form('source_url' => @source_path, 'data' => data)
+
+      body = @client.get(uri.to_s, use_cache: false, headers: api_headers)
+      parsed = JSON.parse(body.to_s)
+      raise PinterestDL::NotFoundError, "Unexpected response from Pinterest (#{name})" unless parsed.is_a?(Hash)
+
+      parsed
+    rescue JSON::ParserError, TypeError
+      raise PinterestDL::NotFoundError, "Unexpected response from Pinterest (#{name})"
+    end
+
+    def api_headers
+      handler = @section ? 'www/[username]/[slug]/[section_slug].js' : 'www/[username]/[slug].js'
+      {
+        'Accept' => 'application/json, text/javascript, */*, q=0.01',
+        'X-Requested-With' => 'XMLHttpRequest',
+        'X-Pinterest-AppState' => 'active',
+        'X-Pinterest-Source-Url' => @source_path,
+        'X-Pinterest-PWS-Handler' => handler,
+        'X-CSRFToken' => @client.cookie('csrftoken', @page_url) || 'undefined',
+        'Referer' => @page_url
+      }
+    end
+
+    def build_pin(raw)
+      PinterestDL::Extractors::PinData.build_pin_hash(raw, quality: @config.quality)
+    end
+  end
+end
