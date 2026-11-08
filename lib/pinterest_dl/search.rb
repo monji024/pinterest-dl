@@ -60,5 +60,65 @@ module PinterestDL
       }
     end
 
+    def csrf_token(cookies)
+      token_cookie = cookies.find { |c| c.start_with?('csrftoken=') }
+      token_cookie ? token_cookie.split('=', 2).last : 'undefined'
+    end
 
-# step-0
+    def build_search_url(source_path, query, bookmarks)
+      options = { query: query, scope: 'pins', page_size: PAGE_SIZE }
+      options[:bookmarks] = bookmarks if bookmarks && !bookmarks.empty?
+      data = { options: options, context: {} }.to_json
+
+      res_uri = URI(S_URL)
+      res_uri.query = URI.encode_www_form('source_url' => source_path, 'data' => data)
+      res_uri.to_s
+    end
+
+    def search_headers(session)
+      cookie_header = [@config.cookies, session[:cookies].join('; ')].compact.reject(&:empty?).join('; ')
+      headers = {
+        'Accept' => 'application/json, text/javascript, */*, q=0.01',
+        'X-Requested-With' => 'XMLHttpRequest',
+        'X-Pinterest-AppState' => 'active',
+        'X-Pinterest-Source-Url' => session[:source_path],
+        'X-Pinterest-PWS-Handler' => 'www/search/[scope].js',
+        'X-CSRFToken' => session[:csrf],
+        'Referer' => session[:home_uri].to_s
+      }
+      headers['Cookie'] = cookie_header unless cookie_header.empty?
+      headers
+    end
+
+    def parse_search_response(json)
+      data_node = json.dig('resource_response', 'data')
+      raw_results =
+        case data_node
+        when Array then data_node
+        when Hash then data_node['results'] || []
+        else []
+        end
+      next_bookmarks = json.dig('resource_response', 'bookmark') ||
+                       json.dig('resource', 'options', 'bookmarks')
+
+      { pins: raw_results.filter_map { |r| build_pin(r) }, bookmarks: Array(next_bookmarks) }
+    end
+
+    def build_pin(raw)
+      PinterestDL::Extractors::PinData.build_pin_hash(raw, quality: @config.quality)
+    end
+
+    def validate_search_json!(body, query:, url:)
+      parsed = JSON.parse(body.to_s)
+      raise PinterestDL::NotFoundError.new("No search results for \"#{query}\"", url: url) unless parsed.is_a?(Hash)
+
+      if parsed['resource_response'] && !parsed['resource_response'].is_a?(Hash)
+        raise PinterestDL::InvalidResponseError.new("Malformed resource_response for \"#{query}\"", url: url)
+      end
+
+      parsed
+    rescue JSON::ParserError, TypeError => e
+      raise PinterestDL::NotFoundError.new("No search results for \"#{query}\"", url: url, cause_error: e)
+    end
+  end
+end
