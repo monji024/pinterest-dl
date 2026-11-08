@@ -12,12 +12,32 @@ module PinterestDL
         '236x': '236x'
       }.freeze
 
+      QUALITY_RANK = {
+        'orig' => 100,
+        'originals' => 100,
+        '1200x' => 80,
+        '736x' => 60,
+        '600x315' => 50,
+        '564x' => 45,
+        '474x' => 35,
+        '236x' => 20,
+        '170x' => 15,
+        '136x136' => 10,
+        '60x60' => 5
+      }.freeze
+
       BUCKET_REGEX = /(?:originals|1200x|736x|564x|474x|236x|\d+x\d*)/i.freeze
+
+      PINIMG_URL_REGEX = %r{
+        https://i\d*\.pinimg\.com/
+        (?:originals|1200x|736x|564x|474x|236x|\d+x\d*)/
+        [A-Za-z0-9_\-/]+\.(?:jpg|jpeg|png|gif|webp)
+      }ix.freeze
 
       module_function
 
       def extract(html, quality: :originals)
-        url = from_json_ld(html) || from_open_graph(html) || from_raw_pattern(html)
+        url = from_json_ld(html) || from_open_graph(html) || from_srcset(html) || from_raw_pattern(html)
         return nil unless url
 
         apply_quality(url, quality)
@@ -28,24 +48,6 @@ module PinterestDL
       end
 
       def from_open_graph(html)
-        PinterestDL::Extractors::Meta.content(html, 'og:image')
-      end
+        PinterestDL::Extractors::Meta.content(html, 'og:image') ||
 
-      def from_raw_pattern(html)
-        match = html.to_s.match(
-          %r{https://i\d*\.pinimg\.com/(?:originals|1200x|736x|564x|474x|236x)/[A-Za-z0-9_\-/]+\.(?:jpg|jpeg|png|gif|webp)}i
-        )
-        match && match[0]
-      end
-
-      def apply_quality(url, quality)
-        return url unless url.to_s.match?(%r{i\d*\.pinimg\.com}i)
-
-        target = QUALITY_PATH[quality.to_sym]
-        return url unless target
-
-        url.sub(%r{/#{BUCKET_REGEX}/}, "/#{target}/")
-      end
-    end
-  end
-end
+# step-0
