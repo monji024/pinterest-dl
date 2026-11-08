@@ -544,5 +544,114 @@ module PinterestDL
     end
 
     def atomic_move!(part_path, path)
+      File.rename(part_path, path)
+    end
 
-# step-4
+    def cleanup_part(part_path)
+      FileUtils.rm_f(part_path) if part_path && File.exist?(part_path)
+    end
+
+    def ensure_writable_directory!(dir)
+      FileUtils.mkdir_p(dir)
+      return if File.writable?(dir)
+
+      raise DiskSpaceError, "Target directory #{dir} is not writable"
+    rescue Errno::ENOSPC, Errno::EDQUOT => e
+      raise DiskSpaceError.new("Insufficient disk space to create #{dir}: #{e.message}", cause_error: e)
+    rescue Errno::EACCES, Errno::EROFS, Errno::EPERM => e
+      raise DiskSpaceError.new("Permission denied creating directory #{dir}: #{e.message}", cause_error: e)
+    end
+    alias ensure_directory_and_space! ensure_writable_directory!
+
+    def resolve_concurrency(concurrency, total)
+      return 1 unless @client.is_a?(PinterestDL::Client)
+
+      configured = concurrency || (@config.respond_to?(:concurrency) ? @config.concurrency : 1)
+      [[configured.to_i, 1].max, total].min
+    end
+
+    def sequential_batch(urls, dir:, filename:, resume:, deduplicate:, collision_strategy:,
+                         max_size:, max_speed:, started_at:, &progress)
+      succeeded = []
+      failed = []
+      skipped = []
+      resumed = []
+      duplicates = []
+      bytes_total = 0
+      seen_urls = {}
+      total = urls.size
+      should_resume = resolve_bool(resume, :resume, false)
+
+      urls.each_with_index do |item, index|
+        raw_url = extract_item_url(item)
+        norm_url = normalize_media_url(raw_url)
+
+        if deduplicate && !norm_url.empty? && seen_urls[norm_url]
+          duplicates << raw_url
+          skipped << resolve_target(item, index, dir, filename).last
+          safe_invoke_progress(progress, index + 1, total, raw_url)
+          next
+        end
+        seen_urls[norm_url] = true unless norm_url.empty?
+
+        url, path, action = resolve_unique_target(item, index, dir, filename, collision_strategy: collision_strategy)
+        if action == :skip
+          skipped << path
+          succeeded << path
+          safe_invoke_progress(progress, index + 1, total, url)
+          next
+        end
+
+        begin
+          had_part = should_resume && File.exist?("#{path}.part") && File.size("#{path}.part").positive?
+          lock = file_lock_for(path)
+          lock.synchronize do
+            download(url, path: path, overwrite: true, resume: should_resume, max_size: max_size, max_speed: max_speed)
+          end
+          resumed << path if had_part
+          succeeded << path
+          bytes_total += File.size(path) if File.exist?(path)
+        rescue PinterestDL::Error => e
+          @config.logger.warn(Security.redact("failed to download #{url}: #{e.message}"))
+          failed << { url: url, error: e }
+        rescue StandardError => e
+          wrapped = DownloadError.new(e.message, url: url, cause_error: e)
+          @config.logger.warn(Security.redact("failed to download #{url}: #{wrapped.message}"))
+          failed << { url: url, error: wrapped }
+        end
+        safe_invoke_progress(progress, index + 1, total, url)
+      end
+
+      DownloadReport.new(
+        succeeded: succeeded,
+        failed: failed,
+        skipped: skipped,
+        resumed: resumed,
+        duplicates: duplicates,
+        bytes_downloaded: bytes_total,
+        elapsed_seconds: monotonic_now - started_at
+      )
+    end
+
+    def concurrent_batch(urls, dir:, filename:, workers:, resume:, deduplicate:, collision_strategy:,
+                         max_size:, max_speed:, started_at:, &progress)
+      queue = Queue.new
+      urls.each_with_index { |item, index| queue << [item, index] }
+      workers.times { queue << nil }
+
+      succeeded = []
+      failed = []
+      skipped = []
+      resumed = []
+      duplicates = []
+      bytes_total = 0
+      done_count = 0
+      total = urls.size
+      seen_urls = {}
+      mutex = Mutex.new
+      should_resume = resolve_bool(resume, :resume, false)
+
+      threads = Array.new(workers) do
+        Thread.new do
+
+# step-5
