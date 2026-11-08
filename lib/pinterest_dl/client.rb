@@ -72,5 +72,28 @@ module PinterestDL
     def cookie(name, url = nil)
       target = url || last_url || 'https://www.pinterest.com'
       allow_local = @config.respond_to?(:allow_local_network) ? @config.allow_local_network : true
+      @cookie_jar.value_for(name, target, allow_local: allow_local)
+    end
 
-# step-2
+    def clear_cache
+      @mutex.synchronize { @cache.clear }
+    end
+
+    def cache_size
+      @mutex.synchronize { @cache.size }
+    end
+
+    private
+
+    def store_cache(key, value)
+      @mutex.synchronize do
+        max = @config.respond_to?(:max_cache_entries) ? @config.max_cache_entries.to_i : 256
+        return if max <= 0
+
+        @cache.delete(key)
+        @cache.shift while @cache.size >= max
+        @cache[key] = value
+      end
+    end
+  end
+end
