@@ -216,5 +216,114 @@ module PinterestDL
         max_size: max_size,
         max_speed: max_speed,
         verify_content: should_verify = verify_content,
+        progress_bar: progress_bar,
+        &on_progress
+      )
+    rescue RangeNotSatisfiableError => e
+      raise unless resumed_offset.positive?
 
-# step-1
+      total_remote = parse_unsatisfied_range_total(e.content_range)
+      if total_remote && resumed_offset == total_remote
+        if max_size && resumed_offset > max_size
+          raise FileTooLargeError.new(
+            "File at #{url} (#{resumed_offset} bytes) exceeds max_file_size (#{max_size} bytes)",
+            url: url,
+            max_size: max_size,
+            actual_size: resumed_offset
+          )
+        end
+        MediaValidator.validate_file_content!(part_path, url: url) if should_verify
+        return resumed_offset
+      end
+
+      cleanup_part(part_path)
+      perform_download_to_part(
+        url,
+        part_path,
+        resumed_offset: 0,
+        max_size: max_size,
+        max_speed: max_speed,
+        verify_content: should_verify,
+        progress_bar: progress_bar,
+        &on_progress
+      )
+    end
+
+    def parse_unsatisfied_range_total(content_range_header)
+      str = content_range_header.to_s.strip
+      match = str.match(UNSATISFIED_RANGE_REGEX)
+      return nil unless match
+
+      total = match[1].to_i
+      total.positive? ? total : nil
+    end
+
+    def perform_download_to_part(url, part_path, resumed_offset:, max_size:, max_speed:, verify_content:, progress_bar:, &on_progress)
+      headers = {}
+      headers['Range'] = "bytes=#{resumed_offset}-" if resumed_offset.positive?
+
+      if @client.respond_to?(:stream_get)
+        stream_to_part(
+          url,
+          part_path,
+          headers: headers,
+          resumed_offset: resumed_offset,
+          max_size: max_size,
+          max_speed: max_speed,
+          verify_content: verify_content,
+          progress_bar: progress_bar,
+          &on_progress
+        )
+      else
+        direct_to_part(
+          url,
+          part_path,
+          headers: headers,
+          resumed_offset: resumed_offset,
+          max_size: max_size,
+          verify_content: verify_content,
+          progress_bar: progress_bar,
+          &on_progress
+        )
+      end
+    end
+
+    def prepare_response_plan!(response, url:, resumed_offset:, max_size:, verify_content:)
+      if response.nil?
+        return {
+          is_partial: false,
+          effective_offset: 0,
+          expected_body_bytes: nil,
+          final_total_size: nil,
+          write_mode: 'wb'
+        }
+      end
+
+      status_code = response.respond_to?(:code) && response.code ? response.code.to_i : 200
+      if status_code == 416 || response.is_a?(Net::HTTPRequestedRangeNotSatisfiable)
+        cr = extract_header(response, 'content-range')
+        raise RangeNotSatisfiableError.new("Range not satisfiable for #{url} (HTTP 416)", url: url, status_code: 416, content_range: cr)
+      end
+
+      content_type = extract_header(response, 'content-type')
+      MediaValidator.validate_content_type!(content_type, url: url) if verify_content
+
+      raw_len = extract_header(response, 'content-length')
+      content_length = raw_len && raw_len.to_s.strip.match?(/\A\d+\z/) ? raw_len.to_s.strip.to_i : nil
+
+      is_partial = response.is_a?(Net::HTTPPartialContent) || status_code == 206
+      if is_partial
+        unless resumed_offset.positive?
+          raise InvalidResponseError.new("Unexpected HTTP 206 without Range request for #{url}", url: url, status_code: 206)
+        end
+
+        range_info = parse_and_validate_content_range!(
+          extract_header(response, 'content-range'),
+          expected_offset: resumed_offset,
+          content_length: content_length,
+          url: url
+        )
+        effective_offset = resumed_offset
+        expected_body_bytes = range_info[:range_length]
+
+# step-2
