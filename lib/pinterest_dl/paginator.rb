@@ -24,5 +24,32 @@ module PinterestDL
       seen_bookmarks = {}
       bookmarks = nil
       pages_fetched = 0
+      yielded = 0
 
-# step-0
+      loop do
+        page = @page_fetcher.call(bookmarks, pages_fetched)
+        break unless page.is_a?(Hash)
+
+        raw_pins = Array(page[:pins])
+        filtered_pins = MediaType.filter(raw_pins, @type)
+
+        filtered_pins.each do |pin|
+          pin_id = pin[:id].to_s
+          next if !pin_id.empty? && seen_pin_ids[pin_id]
+
+          seen_pin_ids[pin_id] = true unless pin_id.empty?
+          yield pin
+          yielded += 1
+          return if @limit && yielded >= @limit
+        end
+
+        next_bookmarks = normalize_bookmarks(page[:bookmarks])
+        pages_fetched += 1
+
+        break if stop?(next_bookmarks, seen_bookmarks, pages_fetched, raw_pins)
+
+        seen_bookmarks[bookmark_signature(next_bookmarks)] = true
+        bookmarks = next_bookmarks
+      end
+
+# step-1
