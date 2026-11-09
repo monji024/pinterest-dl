@@ -762,5 +762,113 @@ module PinterestDL
       while @reserved_paths[candidate] || file_present_on_disk?(candidate) || File.exist?("#{candidate}.part")
         counter += 1
         candidate = File.join(parent, "#{stem}_#{counter}#{ext}")
+      end
+      candidate
+    end
 
-# step-6
+    def resolve_unique_target(item, index, dir, filename, collision_strategy: :overwrite)
+      strategy = validate_collision_strategy!(collision_strategy)
+      url, base_path = resolve_target(item, index, dir, filename)
+
+      @path_mutex.synchronize do
+        occupied = @reserved_paths[base_path] || file_present_on_disk?(base_path)
+
+        case strategy
+        when :skip
+          return [url, base_path, :skip] if occupied
+
+          @reserved_paths[base_path] = true
+          [url, base_path, :download]
+        when :rename
+          if occupied
+            candidate = find_next_available_path(base_path)
+            @reserved_paths[candidate] = true
+            [url, candidate, :download]
+          else
+            @reserved_paths[base_path] = true
+            [url, base_path, :download]
+          end
+        when :overwrite
+          @reserved_paths[base_path] = true
+          [url, base_path, :download]
+        end
+      end
+    end
+
+    def extract_item_url(item)
+      if item.is_a?(Hash) || item.is_a?(Pin)
+        item[:video_url] || item[:image_url] || item[:url]
+      else
+        item
+      end
+    end
+
+    def resolve_target(item, index, dir, filename)
+      if item.is_a?(Hash) || item.is_a?(Pin)
+        url = item[:video_url] || item[:image_url] || item[:url]
+        name = filename ? filename.call(url, index) : pin_filename(item, url, index)
+      else
+        url = item
+        name = filename ? filename.call(url, index) : default_filename(url, index)
+      end
+      [url, File.join(dir, sanitize_filename(name))]
+    end
+
+    def normalize_media_url(url)
+      raw = url.to_s.strip
+      return '' if raw.empty?
+
+      uri = URI.parse(raw)
+      scheme = uri.scheme.to_s.downcase
+      host = uri.host.to_s.downcase
+      port_part = if (scheme == 'http' && uri.port && uri.port != 80) ||
+                     (scheme == 'https' && uri.port && uri.port != 443)
+                    ":#{uri.port}"
+                  else
+                    ''
+                  end
+      path = uri.path.to_s.empty? ? '/' : uri.path.to_s
+
+      query_part = ''
+      if uri.query && !uri.query.empty?
+        pairs = URI.decode_www_form(uri.query).reject do |k, _|
+          TRACKING_QUERY_PARAMS.include?(k.to_s.downcase)
+        end
+        query_part = "?#{URI.encode_www_form(pairs.sort)}" unless pairs.empty?
+      end
+
+      "#{scheme}://#{host}#{port_part}#{path}#{query_part}"
+    rescue URI::InvalidURIError
+      raw
+    end
+
+    def pin_filename(pin, url, index)
+      ext = extract_ext(url)
+      id = pin[:id].to_s.strip
+      return default_filename(url, index) if id.empty?
+
+      format('%<index>04d_%<id>s%<ext>s', index: index + 1, id: id, ext: ext)
+    end
+
+    def default_filename(url, index)
+      format('%<index>04d%<ext>s', index: index + 1, ext: extract_ext(url))
+    end
+
+    def extract_ext(url)
+      ext = File.extname(URI(url.to_s).path.to_s)[/\A\.[A-Za-z0-9]{2,5}\z/]
+      ext || '.jpg'
+    rescue URI::InvalidURIError
+      '.jpg'
+    end
+
+    def sanitize_filename(name)
+      clean = File.basename(name.to_s.strip).gsub(/[\x00\/\\:*?"<>|]/, '_')
+      clean = clean.sub(/\A\.+/, '_')
+      clean.empty? ? 'download.jpg' : clean
+    end
+
+    def monotonic_now
+      Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    end
+  end
+end
