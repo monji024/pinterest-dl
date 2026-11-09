@@ -340,5 +340,89 @@ module PinterestDL
       when :csv
         @out.puts CSV.generate_line(%w[id pin_url title creator image_url video_url])
         pins.each do |p|
+          @out.puts CSV.generate_line([p[:id], p[:pin_url], p[:title], p[:creator], p[:image_url], p[:video_url]])
+        end
+      when :quiet
+        nil
+      else
+        @out.puts JSON.pretty_generate(pins)
+      end
+      0
+    end
 
-# step-3
+    def emit_batch_summary(report, total_requested)
+      case @options[:format]
+      when :json
+        @out.puts report.to_json
+      when :csv
+        @out.puts CSV.generate_line(%w[succeeded skipped failed bytes_downloaded elapsed_seconds])
+        @out.puts CSV.generate_line([
+                                      report[:succeeded].size,
+                                      report[:skipped].size,
+                                      report[:failed].size,
+                                      report.bytes_downloaded,
+                                      report.elapsed_seconds.round(2)
+                                    ])
+      when :text
+        skipped_msg = report[:skipped]&.any? ? " (#{report[:skipped].size} skipped)" : ''
+        failed_msg = report[:failed]&.any? ? ", #{report[:failed].size} failed" : ''
+        bytes_str = ProgressBar.format_bytes(report.bytes_downloaded)
+        size_msg = report.bytes_downloaded.positive? ? " [#{bytes_str} in #{report.elapsed_seconds.round(1)}s]" : ''
+        summary = "Downloaded #{report[:succeeded].size}/#{total_requested} files to #{@options[:output]}"
+        @out.puts "#{summary}#{skipped_msg}#{failed_msg}#{size_msg}"
+      end
+    end
+
+    def build_byte_progress_bar(label:, media_type:)
+      ProgressBar.new(
+        total: 0,
+        width: 20,
+        out: @err,
+        enabled: show_progress?,
+        label: label,
+        media_type: media_type,
+        byte_mode: true
+      )
+    end
+
+    def show_progress?
+      @options[:progress] && !@options[:non_interactive] && @options[:format] != :json && @options[:format] != :quiet
+    end
+
+    def extract_url_basename(url)
+      File.basename(URI(url.to_s).path.to_s)
+    rescue URI::InvalidURIError
+      ''
+    end
+
+    def handle_domain_error(err)
+      hint = case err
+             when AuthenticationError
+               'Pass a logged-in session cookie with `-c cookies.txt` or `-c "sessionid=..."`.'
+             when ForbiddenError
+               'Pinterest rejected the request (HTTP 403). Check your cookies or try a different IP/proxy.'
+             when RateLimitError
+               wait_hint = err.retry_after ? " Wait #{err.retry_after}s or" : ''
+               "Rate limit reached (HTTP 429).#{wait_hint} reduce `-j/--jobs`."
+             when TimeoutError
+               'Increase timeout with `--timeout 30` or configure a proxy with `--proxy`.'
+             when SSRFError, InvalidURLError
+               'Provide a valid public Pinterest URL (e.g. https://www.pinterest.com/pin/...).'
+             when FileTooLargeError
+               'Increase the maximum allowed file size with `--max-size 1G`.'
+             when DiskSpaceError
+               'Check available disk space and write permissions on the output path.'
+             end
+      print_error(err.message, hint: hint)
+    end
+
+    def print_error(message, hint: nil)
+      if @options[:format] == :json
+        @err.puts JSON.generate({ error: message, hint: hint }.compact)
+      else
+        @err.puts "pinterest-dl: #{message}"
+        @err.puts "  Hint: #{hint}" if hint
+      end
+    end
+  end
+end
