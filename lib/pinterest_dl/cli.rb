@@ -254,5 +254,91 @@ module PinterestDL
 
       if @options[:type] == :pin
         handle_pin_links(pins)
+      elsif @options[:output]
+        handle_batch_download(session, pins)
+      else
+        emit_pins_output(pins)
+      end
+    end
 
-# step-2
+    def handle_pin_links(pins)
+      links = pins.map { |p| p[:pin_url] }
+      if @options[:output]
+        FileUtils.mkdir_p(@options[:output])
+        out_file = File.join(@options[:output], 'pins.txt')
+        File.write(out_file, "#{links.join("\n")}\n")
+        if @options[:format] == :json
+          @out.puts JSON.pretty_generate({ saved: links.size, path: out_file, links: links })
+        elsif @options[:format] != :quiet
+          @out.puts "Saved #{links.size} pin links to #{out_file}"
+        end
+      elsif @options[:format] == :json
+        @out.puts JSON.pretty_generate(links)
+      elsif @options[:format] != :quiet
+        @out.puts links
+      end
+      0
+    end
+
+    def handle_batch_download(session, pins)
+      selected = pins.first(@options[:limit])
+      items = selected.select do |p|
+        @options[:type] == :image ? p[:image_url] : (p[:video_url] || p[:image_url])
+      end
+
+      bar = ProgressBar.new(total: items.size, out: @err, enabled: show_progress?)
+      report = session.download_batch(
+        items,
+        dir: @options[:output],
+        concurrency: @options[:jobs],
+        overwrite: !@options[:skip_existing],
+        resume: @options[:resume]
+      ) do |done, _total, url|
+        kind = url.to_s.include?('.mp4') ? :video : :image
+        name = extract_url_basename(url)
+        bar.update(done, label: name, media_type: kind)
+      end
+
+      emit_batch_summary(report, items.size)
+      report[:succeeded].empty? && report[:failed].any? ? 1 : 0
+    end
+
+    def emit_single_download_result(url, path, media_kind, elapsed: 0.0)
+      size = File.exist?(path) ? File.size(path) : 0
+      case @options[:format]
+      when :json
+        @out.puts JSON.pretty_generate({
+                                         status: 'saved',
+                                         type: media_kind,
+                                         url: url,
+                                         path: path,
+                                         bytes: size,
+                                         elapsed_seconds: elapsed.round(2)
+                                       })
+      when :csv
+        @out.puts CSV.generate_line([media_kind, url, path, size])
+      when :text
+        badge = "[#{media_kind.to_s.upcase}]"
+        @out.puts "#{badge} Saved to #{path} (#{ProgressBar.format_bytes(size)} in #{elapsed.round(2)}s)"
+      end
+    end
+
+    def emit_media_info(media)
+      case @options[:format]
+      when :csv
+        @out.puts CSV.generate_line(%w[image_url video_url])
+        @out.puts CSV.generate_line([media[:image_url], media[:video_url]])
+      when :quiet
+        nil
+      else
+        @out.puts JSON.pretty_generate(media)
+      end
+    end
+
+    def emit_pins_output(pins)
+      case @options[:format]
+      when :csv
+        @out.puts CSV.generate_line(%w[id pin_url title creator image_url video_url])
+        pins.each do |p|
+
+# step-3
