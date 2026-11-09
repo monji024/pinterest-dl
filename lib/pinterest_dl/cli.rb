@@ -169,5 +169,90 @@ module PinterestDL
         c.resume = @options[:resume]
         c.progress = show_progress?
         c.max_file_size = @options[:max_size] if @options[:max_size]
+        c.max_speed = @options[:max_speed] if @options[:max_speed]
+        c.proxy = @options[:proxy] if @options[:proxy]
+        if @options[:timeout]
+          c.open_timeout = @options[:timeout]
+          c.read_timeout = @options[:timeout]
+        end
+        c.max_retries = @options[:retries] if @options[:retries]
+        c.logger.level = Logger::DEBUG if @options[:verbose]
+      end
+    end
 
-# step-1
+    def dispatch(command, target, session)
+      case command
+      when 'image'
+        run_single_media(session, target, media_kind: :image)
+      when 'video'
+        run_single_media(session, target, media_kind: :video)
+      when 'media'
+        media = session.get_media(target, quality: @options[:quality])
+        emit_media_info(media)
+        0
+      when 'search'
+        pins = session.search(target, limit: @options[:limit], type: @options[:type])
+        handle_pins(session, pins)
+      when 'board'
+        pins = session.board(target, limit: @options[:limit], type: @options[:type])
+        handle_pins(session, pins)
+      else
+        print_error("Unknown command '#{command}'", hint: 'Valid commands are: image, video, media, search, board')
+        1
+      end
+    end
+
+    def run_single_media(session, target, media_kind:)
+      url = media_kind == :image ? session.get_image_url(target, quality: @options[:quality]) : session.get_video_url(target)
+      unless @options[:output]
+        if @options[:format] == :json
+          @out.puts JSON.pretty_generate({ type: media_kind, url: url })
+        elsif @options[:format] != :quiet
+          @out.puts url
+        end
+        return 0
+      end
+
+      dest_path = resolve_single_output_path(url, @options[:output], media_kind: media_kind)
+      label = File.basename(dest_path)
+      bar = build_byte_progress_bar(label: label, media_type: media_kind)
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      session.download(
+        url,
+        path: dest_path,
+        overwrite: !@options[:skip_existing],
+        resume: @options[:resume],
+        progress_bar: bar
+      )
+      elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+      emit_single_download_result(url, dest_path, media_kind, elapsed: elapsed)
+      0
+    end
+
+    def resolve_single_output_path(url, explicit_output, media_kind:)
+      default_ext = media_kind == :video ? '.mp4' : '.jpg'
+      basename = extract_url_basename(url)
+      basename = "pinterest_#{media_kind}#{default_ext}" if basename.empty? || !basename.include?('.')
+
+      out_str = explicit_output.to_s.strip
+      if File.directory?(out_str) || out_str.end_with?('/', '\\') || out_str == '.'
+        File.join(out_str, basename)
+      else
+        out_str
+      end
+    end
+
+    def handle_pins(session, pins)
+      if pins.empty?
+        if @options[:format] == :json
+          @out.puts JSON.pretty_generate({ pins: [], count: 0 })
+        else
+          @err.puts 'No matching pins found' unless @options[:format] == :quiet
+        end
+        return 0
+      end
+
+      if @options[:type] == :pin
+        handle_pin_links(pins)
+
+# step-2
