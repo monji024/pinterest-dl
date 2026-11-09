@@ -83,5 +83,91 @@ module PinterestDL
               --proxy URL            HTTP/HTTPS proxy URL
               --timeout SEC          Network read/open timeout in seconds
               --retries N            Max retries on transient failures (default 3)
+          -v, --verbose              Enable debug logging
+              --version              Print version and exit
+          -h, --help                 Show this help
+      USAGE
+    end
 
-# step-0
+    private
+
+    def default_options
+      {
+        limit: 25,
+        quality: :originals,
+        type: :all,
+        jobs: 4,
+        skip_existing: false,
+        resume: true,
+        progress: true,
+        non_interactive: false,
+        format: :text,
+        verbose: false
+      }
+    end
+
+    def parse_options!
+      parser = OptionParser.new do |opts|
+        opts.on('-o PATH', '--output PATH') { |v| @options[:output] = v }
+        opts.on('-n N', '--limit N', Integer) { |v| @options[:limit] = v }
+        opts.on('-t T', '--type T') { |v| @options[:type] = v.to_sym }
+        opts.on('--images-only') { @options[:type] = :image }
+        opts.on('--videos-only') { @options[:type] = :video }
+        opts.on('-q Q', '--quality Q') { |v| @options[:quality] = v.to_sym }
+        opts.on('-c STR', '--cookies STR') { |v| @options[:cookies] = v }
+        opts.on('-j N', '--jobs N', Integer) { |v| @options[:jobs] = v }
+        opts.on('-s', '--skip-existing') { @options[:skip_existing] = true }
+        opts.on('--[no-]resume') { |v| @options[:resume] = v }
+        opts.on('--max-size SIZE') { |v| @options[:max_size] = parse_byte_size(v) }
+        opts.on('--max-speed RATE') { |v| @options[:max_speed] = v }
+        opts.on('--format FMT') { |v| @options[:format] = parse_format(v) }
+        opts.on('--json') { @options[:format] = :json }
+        opts.on('--quiet') { @options[:format] = :quiet }
+        opts.on('--no-progress') { @options[:progress] = false }
+        opts.on('--non-interactive') do
+          @options[:non_interactive] = true
+          @options[:progress] = false
+        end
+        opts.on('--proxy URL') { |v| @options[:proxy] = v }
+        opts.on('--timeout SEC', Integer) { |v| @options[:timeout] = v }
+        opts.on('--retries N', Integer) { |v| @options[:retries] = v }
+        opts.on('-v', '--verbose') { @options[:verbose] = true }
+        opts.on('--version') do
+          @out.puts PinterestDL::VERSION
+          @early_exit = true
+        end
+        opts.on('-h', '--help') do
+          @out.puts usage
+          @early_exit = true
+        end
+      end
+      parser.parse!(@argv)
+    end
+
+    def parse_format(val)
+      sym = val.to_s.strip.downcase.to_sym
+      raise OptionParser::InvalidArgument, "format must be one of: #{FORMATS.join(', ')}" unless FORMATS.include?(sym)
+
+      sym
+    end
+
+    def parse_byte_size(val)
+      str = val.to_s.strip.downcase
+      match = str.match(/\A(\d+(?:\.\d+)?)\s*(b|k|kb|m|mb|g|gb)?\z/)
+      raise OptionParser::InvalidArgument, "invalid size #{val.inspect}" unless match
+
+      mult = Downloader::SPEED_MULTIPLIERS.fetch(match[2].to_s, 1)
+      (match[1].to_f * mult).to_i
+    end
+
+    def build_session
+      Session.new do |c|
+        c.cookies = @options[:cookies] if @options[:cookies]
+        c.quality = @options[:quality] if @options[:quality]
+        c.concurrency = @options[:jobs] if @options[:jobs]
+        c.overwrite = !@options[:skip_existing]
+        c.resume = @options[:resume]
+        c.progress = show_progress?
+        c.max_file_size = @options[:max_size] if @options[:max_size]
+
+# step-1
