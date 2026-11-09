@@ -1,0 +1,36 @@
+{
+  "resource_response": {
+    "status": "success",
+    "http_status": 200,
+    "bookmark": "cursor_page_2",
+    "data": {
+      "results": [
+        {
+          "id": "101",
+          "type": "pin",
+          "title": "Cyberpunk Alley",
+          "description": "Neon lights in rain",
+          "pinner": { "username": "neon_dreamer" },
+          "images": {
+            "orig": { "url": "https://i.pinimg.com/originals/10/01/alley.jpg", "width": 1920, "height": 1080 }
+          }
+        },
+        {
+          "id": "102",
+          "type": "pin",
+          "title": "Synthwave Loop",
+          "description": "Retro grid animation",
+          "pinner": { "username": "retro_motion" },
+          "images": {
+            "orig": { "url": "https://i.pinimg.com/originals/10/02/synth.jpg", "width": 1080, "height": 1920 }
+          },
+          "videos": {
+            "video_list": {
+              "V_720P": { "url": "https://v1.pinimg.com/videos/mc/720p/10/02/synth.mp4", "width": 720, "height": 1280 }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
