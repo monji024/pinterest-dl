@@ -3,6 +3,8 @@
 require_relative '../../test_helper'
 
 class PinDataExtractorTest < Minitest::Test
+  include FixtureHelper
+
   def test_extracts_image_and_video_from_embedded_json
     html = <<~HTML
       <script id="__PWS_DATA__" type="application/json">
@@ -64,5 +66,31 @@ class PinDataExtractorTest < Minitest::Test
     result = PinterestDL::Extractors::PinData.extract(html, '55')
     assert_equal 'https://i.pinimg.com/736x/a.jpg', result[:image_url]
     assert_equal 'https://v1.pinimg.com/videos/iht/expMp4/clip_720w.mp4', result[:video_url]
+  end
+
+  def test_picks_highest_resolution_image_regardless_of_key_order
+    pin = {
+      'id' => '42',
+      'images' => {
+        '736x' => { 'url' => 'https://i.pinimg.com/736x/a.jpg', 'width' => 736, 'height' => 1104 },
+        '1200x' => { 'url' => 'https://i.pinimg.com/1200x/a.jpg', 'width' => 1200, 'height' => 1800 },
+        '236x' => { 'url' => 'https://i.pinimg.com/236x/a.jpg', 'width' => 236, 'height' => 354 }
+      }
+    }
+    assert_equal 'https://i.pinimg.com/1200x/a.jpg', PinterestDL::Extractors::PinData.best_image_url(pin)
+  end
+
+  def test_extracts_from_html_fixtures_across_pinterest_layouts
+    pws = PinterestDL::Extractors::PinData.extract(read_fixture('pin_pws.html'), '445566')
+    assert_equal 'https://i.pinimg.com/originals/aa/bb/cc/arch.png', pws[:image_url]
+    assert_equal 'arch_studio', pws[:creator]
+
+    relay = PinterestDL::Extractors::PinData.extract(read_fixture('pin_relay.html'), '778899')
+    assert_equal 'https://i.pinimg.com/1200x/11/22/33/thumb.jpg', relay[:image_url]
+    assert_equal 'https://v1.pinimg.com/videos/mc/720p/11/22/reel.mp4', relay[:video_url]
+
+    next_data = PinterestDL::Extractors::PinData.extract(read_fixture('pin_next.html'), '990011')
+    assert_equal 'https://i0.pinimg.com/736x/99/00/11/poster.jpg', next_data[:image_url]
+    assert_equal 'NextJS Structured Pin', next_data[:title]
   end
 end
