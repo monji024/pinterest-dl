@@ -1,0 +1,24 @@
+{
+  "resource_response": {
+    "status": "success",
+    "http_status": 200,
+    "bookmark": "-end-",
+    "data": [
+      {
+        "id": "201",
+        "type": "pin",
+        "title": "Board Pin Alpha",
+        "description": "Industrial design sketch",
+        "pinner": { "username": "id_sketcher" },
+        "images": {
+          "orig": { "url": "https://i.pinimg.com/originals/20/01/sketch.jpg", "width": 1600, "height": 1200 }
+        }
+      },
+      {
+        "id": "999",
+        "type": "story",
+        "title": { "text": "Related ideas" }
+      }
+    ]
+  }
+}
