@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-
 require_relative '../test_helper'
+require 'stringio'
 
 class ConfigurationTest < Minitest::Test
   def setup
@@ -13,6 +13,10 @@ class ConfigurationTest < Minitest::Test
     assert_equal 10, @config.open_timeout
     assert_equal 20, @config.read_timeout
     assert_equal 3, @config.max_retries
+    assert_equal 500 * 1024 * 1024, @config.max_file_size
+    assert @config.verify_content_type
+    assert @config.progress
+    assert @config.resume
     refute @config.authenticated?
   end
 
@@ -43,5 +47,16 @@ class ConfigurationTest < Minitest::Test
     @config.quality = :'736x'
     @config.reset!
     assert_equal :originals, @config.quality
+  end
+
+  def test_logger_redacts_sensitive_cookies_and_tokens
+    io = StringIO.new
+    @config.logger = Logger.new(io)
+    @config.logger.level = Logger::INFO
+    @config.logger.info('Sending Cookie: sessionid=mysecret999; csrftoken=csrf777')
+
+    refute_includes io.string, 'mysecret999'
+    refute_includes io.string, 'csrf777'
+    assert_includes io.string, '[REDACTED]'
   end
 end
