@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 require_relative 'lib/pinterest_dl/version'
 
 Gem::Specification.new do |s|
@@ -15,11 +14,11 @@ Gem::Specification.new do |s|
   s.homepage    = 'https://github.com/monji024/pinterest-dl'
   s.license     = 'WTFPL'
 
-  s.files       = Dir['lib/**/*.rb'] + Dir['bin/*'] + ['README.md', 'LICENSE', 'CHANGELOG.md']
+  s.files       = Dir['lib/**/*.rb'] + Dir['bin/*'] + ['README.md', 'LICENSE', 'CHANGELOG.md', '.yardopts']
   s.executables = ['pinterest-dl']
   s.require_paths = ['lib']
 
-  s.required_ruby_version = '>= 2.7.0'
+  s.required_ruby_version = '>= 3.0.0'
 
   s.metadata = {
     'source_code_uri' => 'https://github.com/monji024/pinterest-dl',
