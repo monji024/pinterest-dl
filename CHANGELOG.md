@@ -3,6 +3,32 @@
 All notable changes to this project are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [2.4.0]
+
+### Security
+- Added `PinterestDL::Security` with strict URL/host validation, SSRF protection against private, loopback, link-local, and metadata IP ranges (`SSRFError`), and rejection of embedded URL credentials.
+- Added `PinterestDL::CookieJar` preserving `Domain`, `Path`, `Secure`, `HttpOnly`, and `Expires`/`Max-Age` attributes and strictly preventing cookies from being sent to CDN (`*.pinimg.com`), shortener (`pin.it`), or external hosts.
+- Cross-domain redirects are now validated against trusted hosts (`RedirectError`) and strip sensitive headers (`Cookie`, `Authorization`, `X-CSRFToken`) when crossing security domains.
+- Added `PinterestDL::MediaValidator` to verify HTTP `Content-Type` headers and binary file signatures (JPEG, PNG, GIF, WebP, MP4, WebM) and reject HTML/JSON error pages disguised as media (`InvalidMediaError`).
+- Enforced configurable maximum download file size (`config.max_file_size`, default 500 MB, or `--max-size` on the CLI) with `FileTooLargeError`.
+- Logger output automatically redacts cookies, CSRF tokens, session IDs, and proxy passwords.
+
+### Added
+- `PinterestDL::Session` (`PinterestDL.session`) for fully isolated per-client configuration and cookie jars without global state interference.
+- `PinterestDL::Transport` layer with exponential backoff and random jitter (`retry_jitter`, `max_retry_wait`), plus full support for both integer and HTTP-date `Retry-After` headers.
+- `PinterestDL::Paginator` for unified cursor/bookmark pagination across `Search` and `Board`, with duplicate bookmark cycle detection and `Enumerable` support.
+- `PinterestDL::Pin` and `PinterestDL::DownloadReport` models supporting both object-oriented methods and Hash `[]`/`dig` access.
+- Resumable downloads (`Range: bytes=N-` with HTTP `206 Partial Content`) via `resume: true` and `--resume`/`--no-resume`.
+- Download speed throttling (`max_speed:` / `--max-speed`, e.g. `500K`, `2M`), batch URL deduplication (`deduplicate: true`), smart filename collision handling (`collision_strategy: :rename`), and disk space / write-permission error handling (`DiskSpaceError`).
+- Live byte-level `ProgressBar` showing percentage, received/total bytes, download speed, ETA, and media type badge (`[IMAGE]` / `[VIDEO]`), with `--no-progress` and `--non-interactive` flags.
+- Extracted CLI logic into `PinterestDL::CLI` (`lib/pinterest_dl/cli.rb`) with `--format text|json|csv|quiet`, `--json`, `--images-only`, `--videos-only`, and actionable error hints.
+- Expanded error hierarchy: `ForbiddenError` (distinct from `RateLimitError`), `TimeoutError`, `ConnectionError`, `SSLError`, `RedirectError`, `SSRFError`, `InvalidResponseError`, `FileTooLargeError`, `IncompleteDownloadError`, `InvalidMediaError`, and `DiskSpaceError`.
+
+### Fixed
+- `Extractors::PinData.best_image_url` now ranks image variants by resolution area and bucket priority instead of relying on hash insertion order.
+- Added support for `__NEXT_DATA__`, `window.__INITIAL_STATE__`, `srcset`, and `<video>`/`<source>` fallbacks when extracting media from HTML.
+- Fixed race conditions and thread exception propagation in `Downloader#download_batch`, and verified `Content-Length` to detect truncated downloads (`IncompleteDownloadError`).
+
 ## [2.3.0]
 
 ### Added
