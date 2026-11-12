@@ -6,3 +6,8 @@
 /pkg/
 /tmp/
 /vendor/
+.DS_Store
+*.swp
+*~
+.env*
+.byebug_history
