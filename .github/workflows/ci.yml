@@ -2,9 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'maint/**', 'fix/**', 'feat/**']
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,6 +24,10 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
+      - name: Check Ruby syntax
+        run: |
+          ruby -c bin/pinterest-dl
+          find lib test -name '*.rb' -print0 | xargs -0 -n1 ruby -c
       - name: Run test suite with coverage
         env:
           COVERAGE: '1'
@@ -49,9 +54,11 @@ jobs:
         with:
           ruby-version: '3.3'
           bundler-cache: true
-      - name: Build and verify gem installation
+      - name: Build, install, and smoke-test gem
         run: |
           gem build pinterest-dl.gemspec
           gem install ./pinterest-dl-*.gem --no-document
+          ruby -e "require 'pinterest-dl'; abort('version mismatch') unless PinterestDL::VERSION == '2.4.0'"
           pinterest-dl --version
           pinterest-dl --help
+          rm -f ./pinterest-dl-*.gem
