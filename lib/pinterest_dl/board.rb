@@ -4,6 +4,7 @@ require 'json'
 require 'uri'
 require_relative 'paginator'
 require_relative 'media_type'
+require_relative 'security'
 require_relative 'extractors/pin_data'
 
 module PinterestDL
@@ -41,14 +42,17 @@ module PinterestDL
       url = board_url.to_s.strip
       raise PinterestDL::InvalidURLError.new("Not a Pinterest board URL: #{board_url}", url: board_url) if url.empty?
 
-      if url.include?('pin.it/')
+      uri = URI.parse(url)
+      if Security.shortener_host?(uri.host)
         @client.raw_get(url)
-        url = @client.last_url
+        url = @client.last_url.to_s
+        uri = URI.parse(url)
       end
 
-      uri = URI(url)
       parts = uri.path.to_s.split('/').reject(&:empty?)
-      valid = uri.host.to_s.downcase.include?('pinterest.') &&
+      valid = %w[http https].include?(uri.scheme.to_s.downcase) &&
+              uri.user.nil? && uri.password.nil? &&
+              Security.pinterest_host?(uri.host) &&
               [2, 3].include?(parts.size) &&
               !RESERVED_PATHS.include?(parts.first.to_s.downcase)
       raise PinterestDL::InvalidURLError.new("Not a Pinterest board URL: #{board_url}", url: board_url) unless valid

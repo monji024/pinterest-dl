@@ -42,6 +42,14 @@ class BoardTest < Minitest::Test
     assert_raises(PinterestDL::InvalidURLError) { board.call('https://www.pinterest.com/ideas/design/') }
   end
 
+  def test_rejects_spoofed_pinterest_domains_and_embedded_credentials
+    board = PinterestDL::Board.new(client: FakeClient.new, config: PinterestDL::Configuration.new)
+    assert_raises(PinterestDL::InvalidURLError) { board.call('https://evilpinterest.com/someuser/someboard/') }
+    assert_raises(PinterestDL::InvalidURLError) { board.call('https://pinterest.com.attacker.org/someuser/someboard/') }
+    assert_raises(PinterestDL::InvalidURLError) { board.call('https://user:pass@www.pinterest.com/someuser/someboard/') }
+    assert_raises(PinterestDL::InvalidURLError) { board.call('https://evil.org/someuser/someboard/?ref=pin.it/abc') }
+  end
+
   def test_fetches_pins_using_board_id_and_csrf_token
     board, client = build_board(
       feed_json([{ id: '1', title: 'Pin one', images: { orig: { url: 'https://i.pinimg.com/originals/a.jpg' } } }]),
