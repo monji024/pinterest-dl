@@ -39,8 +39,8 @@ module PinterestDL
       fbclid gclid _ga mc_cid mc_eid
     ].freeze
 
-    CONTENT_RANGE_REGEX = /\Abytes\s+(\d+)-(\d+)\/(\d+|\*)\z/i.freeze
-    UNSATISFIED_RANGE_REGEX = /\Abytes\s+\*\/(\d+)\z/i.freeze
+    CONTENT_RANGE_REGEX = %r{\Abytes\s+(\d+)-(\d+)/(\d+|\*)\z}i
+    UNSATISFIED_RANGE_REGEX = %r{\Abytes\s+\*/(\d+)\z}i
 
     def initialize(client: PinterestDL::Client.new, config: PinterestDL.config)
       @client = client
@@ -872,7 +872,7 @@ module PinterestDL
     end
 
     def sanitize_filename(name)
-      clean = File.basename(name.to_s.strip).gsub(/[\x00\/\\:*?"<>|]/, '_')
+      clean = File.basename(name.to_s.strip).gsub(%r{[\x00/\\:*?"<>|]}, '_')
       clean = clean.sub(/\A\.+/, '_')
       clean.empty? ? 'download.jpg' : clean
     end

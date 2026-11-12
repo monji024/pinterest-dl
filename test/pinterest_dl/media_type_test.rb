@@ -9,11 +9,11 @@ class MediaTypeTest < Minitest::Test
   ].freeze
 
   def test_image_keeps_pins_without_video
-    assert_equal ['1'], PinterestDL::MediaType.filter(PINS, :image).map { |p| p[:id] }
+    assert_equal(['1'], PinterestDL::MediaType.filter(PINS, :image).map { |p| p[:id] })
   end
 
   def test_video_keeps_pins_with_video
-    assert_equal ['2'], PinterestDL::MediaType.filter(PINS, :video).map { |p| p[:id] }
+    assert_equal(['2'], PinterestDL::MediaType.filter(PINS, :video).map { |p| p[:id] })
   end
 
   def test_all_and_pin_keep_everything

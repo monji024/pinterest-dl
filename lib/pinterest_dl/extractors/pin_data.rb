@@ -12,11 +12,11 @@ module PinterestDL
           data-relay-response\s*=\s*["']true["'] |
           data-pinterest-state\s*=\s*["']true["']
         )[^>]*>(.*?)</script>
-      }mix.freeze
+      }mix
 
-      WINDOW_STATE_PATTERN = /
-        window\.(?:__INITIAL_STATE__|__PWS_DATA__|__PWS_INITIAL_PROPS__)\s*=\s*(\{.*?\})\s*;?\s*<\/script>
-      /mix.freeze
+      WINDOW_STATE_PATTERN = %r{
+        window\.(?:__INITIAL_STATE__|__PWS_DATA__|__PWS_INITIAL_PROPS__)\s*=\s*(\{.*?\})\s*;?\s*</script>
+      }mix
 
       IMAGE_BUCKET_PRIORITY = {
         'orig' => 1_000_000_000,
@@ -184,22 +184,23 @@ module PinterestDL
           current = stack.pop
           case current
           when Hash
-            if current['images'].is_a?(Hash)
-              url = best_image_url(current)
-              if url
-                score = Image.score_url_quality(url)
-                if score > best_score
-                  best = url
-                  best_score = score
-                end
-              end
-            end
+            best, best_score = pick_better_story_image(current, best, best_score)
             stack.concat(current.values)
           when Array
             stack.concat(current)
           end
         end
         best
+      end
+
+      def pick_better_story_image(node, best, best_score)
+        return [best, best_score] unless node['images'].is_a?(Hash)
+
+        url = best_image_url(node)
+        return [best, best_score] unless url
+
+        score = Image.score_url_quality(url)
+        score > best_score ? [url, score] : [best, best_score]
       end
 
       def parse_embedded_json(html)
@@ -215,7 +216,7 @@ module PinterestDL
           when Hash
             if pin_id
               node_id = (node['id'] || node['pin_id']).to_s
-              matches << node if node_id == pin_id.to_s && has_media?(node)
+              matches << node if node_id == pin_id.to_s && media?(node)
             elsif pin_like?(node)
               return node
             end
@@ -231,7 +232,7 @@ module PinterestDL
         !best_image_url(node).nil?
       end
 
-      def has_media?(node)
+      def media?(node)
         node['images'].is_a?(Hash) ||
           node['images'].is_a?(Array) ||
           node['videos'].is_a?(Hash) ||

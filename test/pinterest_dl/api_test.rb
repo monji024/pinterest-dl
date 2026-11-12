@@ -39,7 +39,7 @@ class ApiTest < Minitest::Test
   end
 
   def test_get_image_url_raises_not_found_when_nothing_extracted
-    client = FakeClient.new({ %r{PinResource} => '{}', %r{pinterest\.com/pin} => '<html><body>empty</body></html>' })
+    client = FakeClient.new({ /PinResource/ => '{}', %r{pinterest\.com/pin} => '<html><body>empty</body></html>' })
     assert_raises(PinterestDL::NotFoundError) do
       PinterestDL.get_image_url('https://www.pinterest.com/pin/123456789/', client: client)
     end
@@ -93,7 +93,7 @@ class ApiTest < Minitest::Test
   def test_get_video_url_error_mentions_image_pins
     html = '<meta property="og:image" content="https://i.pinimg.com/originals/aa/bb/img.jpg">'
     api = { resource_response: { data: { id: '123', images: { orig: { url: 'https://i.pinimg.com/originals/a.jpg' } } } } }
-    client = FakeClient.new({ %r{PinResource} => api.to_json, %r{pinterest\.com/pin} => html })
+    client = FakeClient.new({ /PinResource/ => api.to_json, %r{pinterest\.com/pin} => html })
 
     error = assert_raises(PinterestDL::NotFoundError) do
       PinterestDL.get_video_url('https://www.pinterest.com/pin/123/', client: client)
@@ -112,7 +112,7 @@ class ApiTest < Minitest::Test
         }
       }
     }.to_json
-    client = FakeClient.new({ %r{PinResource} => api, %r{pinterest\.com/pin} => page })
+    client = FakeClient.new({ /PinResource/ => api, %r{pinterest\.com/pin} => page })
 
     url = PinterestDL.get_video_url('https://www.pinterest.com/pin/123/', client: client)
     assert_equal 'https://v1.pinimg.com/videos/a/b.mp4', url
@@ -120,7 +120,7 @@ class ApiTest < Minitest::Test
 
   def test_get_image_url_falls_back_to_api_when_page_has_no_image
     api = { resource_response: { data: { images: { orig: { url: 'https://i.pinimg.com/originals/x/y.jpg' } } } } }
-    client = FakeClient.new({ %r{PinResource} => api.to_json, %r{pinterest\.com/pin} => '<html></html>' })
+    client = FakeClient.new({ /PinResource/ => api.to_json, %r{pinterest\.com/pin} => '<html></html>' })
 
     url = PinterestDL.get_image_url('https://www.pinterest.com/pin/123/', client: client)
     assert_equal 'https://i.pinimg.com/originals/x/y.jpg', url
@@ -129,7 +129,7 @@ class ApiTest < Minitest::Test
   def test_pin_resource_is_called_with_the_pws_handler_header
     page = '<meta property="og:image" content="https://i.pinimg.com/originals/aa/bb/thumb.jpg">'
     api = { resource_response: { data: { videos: { video_list: { V_720P: { url: 'https://v1.pinimg.com/v/a.mp4', width: 1, height: 1 } } } } } }
-    client = FakeClient.new({ %r{PinResource} => api.to_json, %r{pinterest\.com/pin} => page })
+    client = FakeClient.new({ /PinResource/ => api.to_json, %r{pinterest\.com/pin} => page })
 
     PinterestDL.get_video_url('https://www.pinterest.com/pin/123/', client: client)
 
@@ -140,7 +140,7 @@ class ApiTest < Minitest::Test
   def test_get_video_url_tries_the_page_again_when_first_one_has_no_video
     thin = '<meta property="og:image" content="https://i.pinimg.com/originals/aa/bb/thumb.jpg">'
     full = '<meta property="og:video" content="https://v1.pinimg.com/videos/x/full.mp4">'
-    client = FakeClient.new({ %r{PinResource} => '{}', %r{pinterest\.com/pin} => [thin, full] })
+    client = FakeClient.new({ /PinResource/ => '{}', %r{pinterest\.com/pin} => [thin, full] })
 
     url = PinterestDL.get_video_url('https://www.pinterest.com/pin/123/', client: client)
     assert_equal 'https://v1.pinimg.com/videos/x/full.mp4', url
@@ -187,7 +187,7 @@ class ApiTest < Minitest::Test
         }
       }
     }.to_json
-    client = FakeClient.new({ %r{PinResource} => api, %r{pinterest\.com/pin} => '<html></html>' })
+    client = FakeClient.new({ /PinResource/ => api, %r{pinterest\.com/pin} => '<html></html>' })
     media = PinterestDL.get_media('https://www.pinterest.com/pin/123/', client: client)
     assert_equal 'https://i.pinimg.com/originals/m.jpg', media[:image_url]
     assert_equal 'https://v1.pinimg.com/videos/m.mp4', media[:video_url]

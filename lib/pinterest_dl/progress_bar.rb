@@ -39,7 +39,7 @@ module PinterestDL
         @last_line_len = 0
         @label = label if label
         @media_type = media_type if media_type
-        @last_total_bytes = total_bytes if total_bytes && total_bytes.positive?
+        @last_total_bytes = total_bytes if total_bytes&.positive?
         if @byte_mode && @last_total_bytes
           render_byte_progress(0, @last_total_bytes, speed: 0.0, label: @label, media_type: @media_type)
         end
@@ -56,7 +56,7 @@ module PinterestDL
           rec = bytes_received || done.to_i
           tot = total_bytes || @last_total_bytes || (@known_total ? @total : nil)
           @last_received = rec
-          @last_total_bytes = tot if tot && tot.positive?
+          @last_total_bytes = tot if tot&.positive?
           render_byte_progress(rec, tot, speed: speed, label: eff_label, media_type: eff_type)
         else
           render_item_progress(done, label: eff_label, media_type: eff_type)
@@ -147,7 +147,7 @@ module PinterestDL
       badge = media_type ? "[#{media_type.to_s.upcase}] " : ''
       short_label = label && !label.empty? ? "#{self.class.truncate_label(label)} " : ''
 
-      if total_bytes && total_bytes.positive?
+      if total_bytes&.positive?
         ratio = force_complete ? 1.0 : [[received.to_f / total_bytes, 0.0].max, 1.0].min
         pct = (ratio * 100).round
         remaining = [total_bytes - received, 0].max
@@ -169,7 +169,7 @@ module PinterestDL
 
     def adaptive_bar_width(non_bar_len)
       cols = detect_terminal_columns
-      return @width unless cols && cols.positive?
+      return @width unless cols&.positive?
 
       available = cols - non_bar_len - 1
       [[available, 6].max, @width].min

@@ -6,9 +6,9 @@ require 'uri'
 
 module PinterestDL
   module Security
-    PINTEREST_DOMAIN_REGEX = /\A(?:[a-z0-9-]+\.)*pinterest\.(?:com|[a-z]{2,3}(?:\.[a-z]{2})?)\z/i.freeze
-    PINIMG_DOMAIN_REGEX = /\A(?:[a-z0-9-]+\.)*pinimg\.com\z/i.freeze
-    SHORTENER_DOMAIN_REGEX = /\Apin\.it\z/i.freeze
+    PINTEREST_DOMAIN_REGEX = /\A(?:[a-z0-9-]+\.)*pinterest\.(?:com|[a-z]{2,3}(?:\.[a-z]{2})?)\z/i
+    PINIMG_DOMAIN_REGEX = /\A(?:[a-z0-9-]+\.)*pinimg\.com\z/i
+    SHORTENER_DOMAIN_REGEX = /\Apin\.it\z/i
 
     PRIVATE_CIDRS = [
       IPAddr.new('0.0.0.0/8'),
@@ -36,9 +36,9 @@ module PinterestDL
       (cookie|set-cookie|csrftoken|x-csrftoken|sessionid|_pinterest_sess|_auth|authorization|token|password|secret)
       (\s*[:=]\s*)
       ([^\s,;'"&]+)
-    /ix.freeze
+    /ix
 
-    URL_CREDENTIAL_PATTERN = %r{(https?://[^/\s:@]+:)([^@\s/]+)(@)}i.freeze
+    URL_CREDENTIAL_PATTERN = %r{(https?://[^/\s:@]+:)([^@\s/]+)(@)}i
 
     module_function
 
@@ -87,6 +87,7 @@ module PinterestDL
       ip = parse_ip(host)
       if ip
         raise SSRFError.new("Blocked internal IP address #{ip}", url: raw_url) if private_ip?(ip)
+
         return
       end
 
@@ -175,7 +176,7 @@ module PinterestDL
 
     def resolve_ips(host)
       Resolv.getaddresses(host).filter_map { |addr| parse_ip(addr) }
-    rescue Resolv::ResolvError, SocketError, StandardError
+    rescue StandardError
       []
     end
 
@@ -196,11 +197,11 @@ module PinterestDL
       return {} unless headers.is_a?(Hash)
 
       headers.each_with_object({}) do |(key, value), out|
-        if key.to_s.match?(/\A(cookie|set-cookie|authorization|x-csrftoken|proxy-authorization)\z/i)
-          out[key] = '[REDACTED]'
-        else
-          out[key] = redact(value.to_s)
-        end
+        out[key] = if key.to_s.match?(/\A(cookie|set-cookie|authorization|x-csrftoken|proxy-authorization)\z/i)
+                     '[REDACTED]'
+                   else
+                     redact(value.to_s)
+                   end
       end
     end
   end

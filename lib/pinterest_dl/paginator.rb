@@ -40,8 +40,9 @@ module PinterestDL
           seen_pin_ids[pin_id] = true unless pin_id.empty?
           yield pin
           yielded += 1
-          return if @limit && yielded >= @limit
+          break if @limit && yielded >= @limit
         end
+        break if @limit && yielded >= @limit
 
         next_bookmarks = normalize_bookmarks(page[:bookmarks])
         pages_fetched += 1

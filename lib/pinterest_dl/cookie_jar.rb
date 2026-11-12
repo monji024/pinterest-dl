@@ -118,6 +118,7 @@ module PinterestDL
         File.foreach(file_path) do |line|
           stripped = line.strip
           next if stripped.empty?
+
           if stripped.start_with?('#HttpOnly_')
             stripped = stripped.sub(/\A#HttpOnly_/, '')
             http_only = true

@@ -15,7 +15,7 @@ class PaginatorTest < Minitest::Test
     end
 
     results = paginator.to_a
-    assert_equal %w[1 2], results.map { |p| p[:id] }
+    assert_equal(%w[1 2], results.map { |p| p[:id] })
   end
 
   def test_stops_automatically_when_bookmark_repeats_to_prevent_infinite_loop
@@ -30,7 +30,7 @@ class PaginatorTest < Minitest::Test
 
     results = paginator.to_a
     assert_equal 2, calls
-    assert_equal %w[1 2], results.map { |p| p[:id] }
+    assert_equal(%w[1 2], results.map { |p| p[:id] })
   end
 
   def test_deduplicates_pins_with_same_id_across_pages
@@ -41,6 +41,6 @@ class PaginatorTest < Minitest::Test
     ]
 
     paginator = PinterestDL::Paginator.new(max_pages: 5) { |_bm, idx| pages[idx] }
-    assert_equal %w[10 11], paginator.map { |p| p[:id] }
+    assert_equal(%w[10 11], paginator.map { |p| p[:id] })
   end
 end

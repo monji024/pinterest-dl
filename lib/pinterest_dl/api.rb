@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module PinterestDL
-  PIN_URL_PATTERN = %r{\Ahttps?://(?:[a-z0-9-]+\.)*(?:pinterest\.(?:com|[a-z]{2,3}(?:\.[a-z]{2})?)/pin/|pin\.it/)}i.freeze
+  PIN_URL_PATTERN = %r{\Ahttps?://(?:[a-z0-9-]+\.)*(?:pinterest\.(?:com|[a-z]{2,3}(?:\.[a-z]{2})?)/pin/|pin\.it/)}i
 
   class << self
     def config

@@ -26,13 +26,13 @@ module PinterestDL
         '60x60' => 5
       }.freeze
 
-      BUCKET_REGEX = /(?:originals|1200x|736x|564x|474x|236x|\d+x\d*)/i.freeze
+      BUCKET_REGEX = /(?:originals|1200x|736x|564x|474x|236x|\d+x\d*)/i
 
       PINIMG_URL_REGEX = %r{
         https://i\d*\.pinimg\.com/
         (?:originals|1200x|736x|564x|474x|236x|\d+x\d*)/
         [A-Za-z0-9_\-/]+\.(?:jpg|jpeg|png|gif|webp)
-      }ix.freeze
+      }ix
 
       module_function
 
@@ -59,7 +59,7 @@ module PinterestDL
           srcset.split(',').each do |entry|
             parts = entry.strip.split(/\s+/)
             url = parts[0]
-            next unless url && url.match?(%r{\Ahttps://i\d*\.pinimg\.com/}i)
+            next unless url&.match?(%r{\Ahttps://i\d*\.pinimg\.com/}i)
 
             scale = parts[1].to_s[/\A(\d+)[wx]\z/i, 1].to_i
             candidates << [scale, url]
@@ -90,7 +90,7 @@ module PinterestDL
       end
 
       def apply_quality(url, quality)
-        return url unless url.to_s.match?(%r{i\d*\.pinimg\.com}i)
+        return url unless url.to_s.match?(/i\d*\.pinimg\.com/i)
 
         target = QUALITY_PATH[quality.to_sym]
         return url unless target
