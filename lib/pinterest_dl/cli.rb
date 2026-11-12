@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'csv'
 require 'fileutils'
 require 'json'
 require 'optparse'
@@ -316,7 +315,7 @@ module PinterestDL
                                          elapsed_seconds: elapsed.round(2)
                                        })
       when :csv
-        @out.puts CSV.generate_line([media_kind, url, path, size])
+        @out.puts csv_line([media_kind, url, path, size])
       when :text
         badge = "[#{media_kind.to_s.upcase}]"
         @out.puts "#{badge} Saved to #{path} (#{ProgressBar.format_bytes(size)} in #{elapsed.round(2)}s)"
@@ -326,8 +325,8 @@ module PinterestDL
     def emit_media_info(media)
       case @options[:format]
       when :csv
-        @out.puts CSV.generate_line(%w[image_url video_url])
-        @out.puts CSV.generate_line([media[:image_url], media[:video_url]])
+        @out.puts csv_line(%w[image_url video_url])
+        @out.puts csv_line([media[:image_url], media[:video_url]])
       when :quiet
         nil
       else
@@ -338,9 +337,9 @@ module PinterestDL
     def emit_pins_output(pins)
       case @options[:format]
       when :csv
-        @out.puts CSV.generate_line(%w[id pin_url title creator image_url video_url])
+        @out.puts csv_line(%w[id pin_url title creator image_url video_url])
         pins.each do |p|
-          @out.puts CSV.generate_line([p[:id], p[:pin_url], p[:title], p[:creator], p[:image_url], p[:video_url]])
+          @out.puts csv_line([p[:id], p[:pin_url], p[:title], p[:creator], p[:image_url], p[:video_url]])
         end
       when :quiet
         nil
@@ -355,8 +354,8 @@ module PinterestDL
       when :json
         @out.puts report.to_json
       when :csv
-        @out.puts CSV.generate_line(%w[succeeded skipped failed bytes_downloaded elapsed_seconds])
-        @out.puts CSV.generate_line([
+        @out.puts csv_line(%w[succeeded skipped failed bytes_downloaded elapsed_seconds])
+        @out.puts csv_line([
                                       report[:succeeded].size,
                                       report[:skipped].size,
                                       report[:failed].size,
@@ -387,6 +386,14 @@ module PinterestDL
 
     def show_progress?
       @options[:progress] && !@options[:non_interactive] && @options[:format] != :json && @options[:format] != :quiet
+    end
+
+    def csv_line(fields)
+      row = fields.map do |field|
+        str = field.to_s
+        str.match?(/[,"\r\n]/) ? "\"#{str.gsub('"', '""')}\"" : str
+      end.join(',')
+      "#{row}\n"
     end
 
     def extract_url_basename(url)

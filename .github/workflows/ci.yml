@@ -20,6 +20,8 @@ jobs:
         ruby: ['3.0', '3.1', '3.2', '3.3', '3.4']
     steps:
       - uses: actions/checkout@v4
+      - name: Ensure unlocked Gemfile for Ruby version matrix
+        run: rm -f Gemfile.lock
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
@@ -38,6 +40,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Ensure unlocked Gemfile
+        run: rm -f Gemfile.lock
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.3'
@@ -50,6 +54,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Ensure unlocked Gemfile
+        run: rm -f Gemfile.lock
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.3'
