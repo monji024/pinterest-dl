@@ -209,12 +209,14 @@ module PinterestDL
     def perform_request(http, req, &stream_block)
       return http.request(req) unless stream_block
 
+      captured = nil
       http.request(req) do |response|
         if response.is_a?(Net::HTTPSuccess) || response.is_a?(Net::HTTPPartialContent)
           stream_block.call(response)
         end
-        return response
+        captured = response
       end
+      captured
     end
 
     def retryable_response?(response)

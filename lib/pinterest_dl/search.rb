@@ -76,7 +76,6 @@ module PinterestDL
     end
 
     def search_headers(session)
-      cookie_header = [@config.cookies, session[:cookies].join('; ')].compact.reject(&:empty?).join('; ')
       headers = {
         'Accept' => 'application/json, text/javascript, */*, q=0.01',
         'X-Requested-With' => 'XMLHttpRequest',
@@ -86,7 +85,10 @@ module PinterestDL
         'X-CSRFToken' => session[:csrf],
         'Referer' => session[:home_uri].to_s
       }
-      headers['Cookie'] = cookie_header unless cookie_header.empty?
+      unless @client.respond_to?(:cookie_jar)
+        cookie_header = [@config.cookies, session[:cookies].join('; ')].compact.reject(&:empty?).join('; ')
+        headers['Cookie'] = cookie_header unless cookie_header.empty?
+      end
       headers
     end
 

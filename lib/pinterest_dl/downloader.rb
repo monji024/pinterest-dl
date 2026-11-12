@@ -410,7 +410,7 @@ module PinterestDL
       file_handle = nil
       started_at = monotonic_now
 
-      @client.stream_get(url, headers: headers) do |chunk, response|
+      final_response = @client.stream_get(url, headers: headers) do |chunk, response|
         if file_handle.nil?
           plan = prepare_response_plan!(
             response,
@@ -450,7 +450,17 @@ module PinterestDL
       end
 
       if file_handle.nil?
-        File.binwrite(part_path, '')
+        if final_response
+          plan = prepare_response_plan!(
+            final_response,
+            url: url,
+            resumed_offset: resumed_offset,
+            max_size: max_size,
+            verify_content: verify_content
+          )
+          total_written = plan[:effective_offset]
+        end
+        File.binwrite(part_path, '') unless resumed_offset.positive? && plan && plan[:is_partial]
       else
         file_handle.flush
         file_handle.close
