@@ -355,13 +355,14 @@ module PinterestDL
         @out.puts report.to_json
       when :csv
         @out.puts csv_line(%w[succeeded skipped failed bytes_downloaded elapsed_seconds])
-        @out.puts csv_line([
-                                      report[:succeeded].size,
-                                      report[:skipped].size,
-                                      report[:failed].size,
-                                      report.bytes_downloaded,
-                                      report.elapsed_seconds.round(2)
-                                    ])
+        row = [
+          report[:succeeded].size,
+          report[:skipped].size,
+          report[:failed].size,
+          report.bytes_downloaded,
+          report.elapsed_seconds.round(2)
+        ]
+        @out.puts csv_line(row)
       when :text
         skipped_msg = report[:skipped]&.any? ? " (#{report[:skipped].size} skipped)" : ''
         failed_msg = report[:failed]&.any? ? ", #{report[:failed].size} failed" : ''
