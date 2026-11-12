@@ -83,7 +83,7 @@ module PinterestDL
         resumed_offset: resumed_offset,
         max_size: size_limit,
         max_speed: speed_limit,
-        verify_content: should_verify,
+        verify_content: verify_content,
         progress_bar: progress_bar,
         &on_progress
       )
@@ -215,7 +215,7 @@ module PinterestDL
         resumed_offset: resumed_offset,
         max_size: max_size,
         max_speed: max_speed,
-        verify_content: should_verify = verify_content,
+        verify_content: verify_content,
         progress_bar: progress_bar,
         &on_progress
       )
@@ -232,7 +232,7 @@ module PinterestDL
             actual_size: resumed_offset
           )
         end
-        MediaValidator.validate_file_content!(part_path, url: url) if should_verify
+        MediaValidator.validate_file_content!(part_path, url: url) if verify_content
         return resumed_offset
       end
 
@@ -243,7 +243,7 @@ module PinterestDL
         resumed_offset: 0,
         max_size: max_size,
         max_speed: max_speed,
-        verify_content: should_verify,
+        verify_content: verify_content,
         progress_bar: progress_bar,
         &on_progress
       )

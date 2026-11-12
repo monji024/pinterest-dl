@@ -5,6 +5,13 @@ require 'tmpdir'
 require 'socket'
 
 class DownloaderTest < Minitest::Test
+  def drain_headers(sock)
+    loop do
+      line = sock.gets
+      break if line.nil? || line == "\r\n"
+    end
+  end
+
   JPEG_DATA = "\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00payload".b.freeze
 
   def test_download_writes_body_to_path
@@ -322,7 +329,7 @@ class DownloaderTest < Minitest::Test
     thread = Thread.new do
       loop do
         sock = server.accept
-        while (line = sock.gets) && line != "\r\n"; end
+        drain_headers(sock)
         sock.write "HTTP/1.1 200 OK\r\nContent-Type: image/jpeg\r\nContent-Length: #{JPEG_DATA.bytesize}\r\nConnection: close\r\n\r\n#{JPEG_DATA}"
         sock.close
       rescue StandardError
@@ -366,7 +373,7 @@ class DownloaderTest < Minitest::Test
     thread = Thread.new do
       loop do
         sock = server.accept
-        while (line = sock.gets) && line != "\r\n"; end
+        drain_headers(sock)
         sock.write "HTTP/1.1 200 OK\r\nContent-Type: image/jpeg\r\nContent-Length: #{JPEG_DATA.bytesize}\r\nConnection: close\r\n\r\n#{JPEG_DATA}"
         sock.close
       rescue StandardError
@@ -399,7 +406,7 @@ class DownloaderTest < Minitest::Test
     thread = Thread.new do
       loop do
         sock = server.accept
-        while (line = sock.gets) && line != "\r\n"; end
+        drain_headers(sock)
         sock.write "HTTP/1.1 200 OK\r\nContent-Type: image/jpeg\r\nContent-Length: #{JPEG_DATA.bytesize}\r\nConnection: close\r\n\r\n#{JPEG_DATA}"
         sock.close
       rescue StandardError

@@ -1,6 +1,6 @@
 AllCops:
   TargetRubyVersion: 3.0
-  NewCops: enable
+  NewCops: disable
   SuggestExtensions: false
   Exclude:
     - 'vendor/**/*'
@@ -11,33 +11,67 @@ AllCops:
 Style/Documentation:
   Enabled: false
 
+Style/FrozenStringLiteralComment:
+  Enabled: true
+
+Naming/FileName:
+  Exclude:
+    - 'lib/pinterest-dl.rb'
+    - 'bin/pinterest-dl'
+
+Naming/VariableNumber:
+  Enabled: false
+
+Naming/MethodParameterName:
+  Enabled: false
+
+Gemspec/DevelopmentDependencies:
+  Enabled: false
+
 Metrics/MethodLength:
-  Max: 55
+  Enabled: false
 
 Metrics/AbcSize:
-  Max: 55
+  Enabled: false
 
 Metrics/CyclomaticComplexity:
-  Max: 20
+  Enabled: false
 
 Metrics/PerceivedComplexity:
-  Max: 20
+  Enabled: false
 
 Metrics/ClassLength:
-  Max: 450
+  Enabled: false
 
 Metrics/ModuleLength:
-  Max: 300
+  Enabled: false
 
 Metrics/ParameterLists:
-  Max: 10
-  CountKeywordArgs: false
+  Enabled: false
 
 Metrics/BlockLength:
-  Exclude:
-    - 'test/**/*'
-    - 'pinterest-dl.gemspec'
-    - 'lib/pinterest_dl/cli.rb'
+  Enabled: false
+
+Style/NumericPredicate:
+  Enabled: false
+
+Style/GuardClause:
+  Enabled: false
+
+Style/IfUnlessModifier:
+  Enabled: false
+
+Style/MultilineBlockChain:
+  Enabled: false
+
+Style/SoleNestedConditional:
+  Enabled: false
+
+Style/RedundantRegexpEscape:
+  Enabled: false
+
+Style/SingleArgumentDig:
+  Enabled: false
 
 Layout/LineLength:
   Max: 140

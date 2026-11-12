@@ -115,7 +115,7 @@ module PinterestDL
 
     private
 
-    class RetryableResponseSignal < StandardError; end
+    RetryableResponseSignal = Class.new(StandardError)
     private_constant :RetryableResponseSignal
 
     def validate_target_url!(raw_url)
