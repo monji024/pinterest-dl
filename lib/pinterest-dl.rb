@@ -21,6 +21,7 @@ require_relative 'pinterest_dl/downloader'
 require_relative 'pinterest_dl/progress_bar'
 require_relative 'pinterest_dl/session'
 require_relative 'pinterest_dl/api'
+require_relative 'pinterest_dl/tui'
 require_relative 'pinterest_dl/cli'
 
 module PinterestDL

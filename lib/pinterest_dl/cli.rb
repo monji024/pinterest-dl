@@ -9,6 +9,7 @@ require_relative 'errors'
 require_relative 'progress_bar'
 require_relative 'session'
 require_relative 'api'
+require_relative 'tui'
 
 module PinterestDL
   class CLI
@@ -31,6 +32,10 @@ module PinterestDL
 
       command = @argv.shift
       target = @argv.shift
+
+      if command == 'tui' || (command.nil? && launch_tui_directly?)
+        return run_tui
+      end
 
       if command.nil? || target.nil?
         @out.puts usage
@@ -55,6 +60,8 @@ module PinterestDL
         pinterest-dl v#{PinterestDL::VERSION}
 
         Usage:
+          pinterest-dl
+          pinterest-dl tui [-o DIR] [-c COOKIES] [--proxy URL]
           pinterest-dl image URL [-q QUALITY] [-o PATH] [options]
           pinterest-dl video URL [-o PATH] [options]
           pinterest-dl media URL [-q QUALITY] [options]
@@ -89,6 +96,18 @@ module PinterestDL
     end
 
     private
+
+    def launch_tui_directly?
+      !@options[:non_interactive] && @out.respond_to?(:tty?) && @out.tty? && $stdin.respond_to?(:tty?) && $stdin.tty?
+    end
+
+    def run_tui
+      @options[:proxy] ||= PinterestDL::TUI.detect_proxy
+      @options[:cookies] ||= PinterestDL::TUI.detect_cookies_file
+      out_dir = @options[:output] || './downloads'
+      PinterestDL::TUI.start(session: build_session, output_dir: out_dir)
+      0
+    end
 
     def default_options
       {

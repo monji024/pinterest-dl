@@ -35,6 +35,32 @@ Requires Ruby **3.0 or newer** (no external runtime dependencies).
 
 ## Quick Start
 
+### Interactive TUI
+
+Launch the interactive terminal interface with gallery browsing, live previews, quality selection, mouse controls, and batch downloading:
+
+```bash
+pinterest-dl tui
+# or simply run `pinterest-dl` in an interactive terminal
+```
+
+Proxy environment variables (`HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY`) and local `cookies.txt` files are detected automatically.
+
+**Image preview rendering** depends on your terminal's graphics support:
+- **Full-resolution native images (recommended):** Works out of the box in **Kitty**, **Ghostty**, **WezTerm**, **Konsole** (Kitty Graphics Protocol), **iTerm2** / **Tabby** / **Hyper** / **Warp** (iTerm2 Inline Images), and **Windows Terminal** / **Foot** / **mlterm** / **Contour** (Sixel with `chafa` or `img2sixel`).
+- **Standard X11 terminals (GNOME Terminal, Pop!_OS Terminal, XFCE4 Terminal, Alacritty):** Require `ueberzugpp` for native unpixelated overlays. Without `ueberzugpp`, standard text-only terminals automatically fall back to 24-bit half-block previews (via `ffmpeg`, ImageMagick, `chafa`, Pillow, or `djpeg`).
+
+#### Optional: Install `ueberzugpp` on Ubuntu / Pop!_OS
+
+```bash
+echo 'deb http://download.opensuse.org/repositories/home:/justkidding/xUbuntu_26.04/ /' | sudo tee /etc/apt/sources.list.d/home:justkidding.list
+curl -fsSL https://download.opensuse.org/repositories/home:justkidding/xUbuntu_26.04/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/home_justkidding.gpg > /dev/null
+sudo apt update
+sudo apt install ueberzugpp
+```
+
+*(Replace `xUbuntu_26.04` with `xUbuntu_24.04` or `xUbuntu_22.04` for earlier Ubuntu or Pop!_OS releases.)*
+
 ### CLI
 
 ```bash
