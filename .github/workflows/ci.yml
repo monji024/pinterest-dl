@@ -64,7 +64,7 @@ jobs:
         run: |
           gem build pinterest-dl.gemspec
           gem install ./pinterest-dl-*.gem --no-document
-          ruby -e "require 'pinterest-dl'; abort('version mismatch') unless PinterestDL::VERSION == '2.4.0'"
+          ruby -e "require 'pinterest-dl'; expected = Gem::Specification.load('pinterest-dl.gemspec').version.to_s; abort('version mismatch') unless PinterestDL::VERSION == expected"
           pinterest-dl --version
           pinterest-dl --help
           rm -f ./pinterest-dl-*.gem

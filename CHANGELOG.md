@@ -3,6 +3,13 @@
 All notable changes to this project are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [2.5.0]
+
+### Added
+- Interactive terminal UI (`pinterest-dl tui` or running `pinterest-dl` in an interactive terminal) with gallery browsing, category filtering, configurable search result limits (`1`–`200`), right-panel quality selector, full mouse support, and multi-select batch downloading.
+- Multi-protocol HD image preview pipeline with automatic detection for Kitty Graphics Protocol (Kitty, Ghostty, WezTerm, Konsole), iTerm2 Inline Images (iTerm2, Tabby, Hyper, Warp), Sixel (Windows Terminal, Foot, mlterm, Contour), `ueberzugpp` X11 overlays, and 24-bit half-block fallback (`ffmpeg`, ImageMagick, `chafa`, Pillow, `djpeg`).
+- Automatic proxy (`HTTPS_PROXY`/`HTTP_PROXY`/`ALL_PROXY`) and `cookies.txt` detection for zero-config TUI startup, full multi-byte UTF-8 keyboard support, and auto-clearing completed download queue entries.
+
 ## [2.4.0]
 
 ### Security
