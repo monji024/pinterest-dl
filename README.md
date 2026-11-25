@@ -1,23 +1,64 @@
+<div align="center">
+
+<img src="img/logo.png" alt="pinterest-dl logo" width="120">
+
 # pinterest-dl
 
-**Extract direct image and video URLs from Pinterest pins, search pins, fetch board contents, and download media from Ruby or the command line.**
+**Get direct image and video links from Pinterest. Search pins, grab board contents, and download media — from Ruby or the command line.**
 
 [![Gem Version](https://img.shields.io/gem/v/pinterest-dl)](https://rubygems.org/gems/pinterest-dl)
+[![Downloads](https://img.shields.io/gem/dt/pinterest-dl)](https://rubygems.org/gems/pinterest-dl)
+[![Stars](https://img.shields.io/github/stars/monji024/pinterest-dl)](https://github.com/monji024/pinterest-dl)
 [![CI](https://github.com/monji024/pinterest-dl/actions/workflows/ci.yml/badge.svg)](https://github.com/monji024/pinterest-dl/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-WTFPL-blue)](LICENSE)
 [![Ruby](https://img.shields.io/badge/Ruby-3.0+-red)](https://www.ruby-lang.org/)
 
-Pinterest does not provide a public API for resolving direct media URLs from pin links, paginating public boards, or downloading pin media in bulk. `pinterest-dl` extracts direct `i.pinimg.com` and `v.pinimg.com` media URLs from pin pages and Pinterest's web resource endpoints, with zero runtime gem dependencies.
+**Languages:** [English](README.md) | [فارسی](README.fa.md)
 
-> **Network note:** Users in regions where Pinterest is restricted may need an HTTP/HTTPS proxy (`--proxy` or `config.proxy`).
+</div>
+
+---
+
+Pinterest doesn't give you a public API for direct media URLs or bulk board browsing. `pinterest-dl` fills that gap. It pulls real `i.pinimg.com` and `v.pinimg.com` links from pin pages and Pinterest web endpoints. Zero runtime gem dependencies.
+
+> If Pinterest is blocked where you are, use a proxy (`--proxy` or `config.proxy`).
+
+## Contents
+
+- [Demo](#demo)
+- [Features](#features)
+- [Screenshots](#screenshots)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Library Usage](#library-usage)
+- [Configuration](#configuration)
+- [CLI Reference](#cli-reference)
+- [Error Handling](#error-handling)
+- [FAQ](#faq)
+- [Development](#development)
+- [License](#license)
+
+## Demo
+
+<div align="center">
+  <img src="img/tui-demo.gif" alt="TUI Demo" width="800">
+</div>
 
 ## Features
 
-- **Direct media extraction**: Resolves original or resized image URLs (`originals`, `1200x`, `736x`, `564x`, `474x`, `236x`) and highest-resolution `.mp4` video URLs from pin URLs, country subdomains, and `pin.it` short links.
-- **Search and boards**: Queries Pinterest search and board/section feeds with automatic cursor pagination, duplicate pin filtering, and embedded HTML fallback.
-- **Reliable downloading**: Streams files to temporary `.part` files with atomic rename on completion, validated HTTP `206 Partial Content` (`Content-Range`) and `416` resume support, `Content-Type` and magic-byte verification, configurable file-size caps, bandwidth throttling, and multi-threaded batch workers.
-- **Security by default**: Blocks SSRF against loopback/private/link-local addresses, scopes cookies strictly to Pinterest domains (never leaking session cookies to CDN or third-party hosts), strips sensitive headers on cross-domain redirects, and redacts tokens/cookies from logs.
-- **Isolated sessions**: Supports both global configuration (`PinterestDL.configure`) and independent per-client instances (`PinterestDL.session`).
+| | Feature | Description |
+|---|---------|-------------|
+| <img src="https://cdn.jsdelivr.net/npm/lucide-static@0.454.0/icons/image.svg" width="22" height="22"> | **Direct media extraction** | Grabs original or resized image URLs (`originals`, `1200x`, `736x`, `564x`, `474x`, `236x`) and the highest-res `.mp4` video link. Works with normal pin URLs, country subdomains, and `pin.it` short links. |
+| <img src="https://cdn.jsdelivr.net/npm/lucide-static@0.454.0/icons/search.svg" width="22" height="22"> | **Search and boards** | Search Pinterest or pull pins from a board/section. Handles pagination, filters duplicates, and falls back to embedded HTML when needed. |
+| <img src="https://cdn.jsdelivr.net/npm/lucide-static@0.454.0/icons/download.svg" width="22" height="22"> | **Reliable downloading** | Streams to temporary `.part` files then renames them when done. Supports resume (`206 Partial Content` / `416`), Content-Type checks, size limits, speed throttling, and parallel workers. |
+| <img src="https://cdn.jsdelivr.net/npm/lucide-static@0.454.0/icons/shield.svg" width="22" height="22"> | **Security by default** | Blocks SSRF against private/loopback addresses. Cookies stay on Pinterest domains only. Sensitive headers get stripped on cross-domain redirects and tokens are redacted from logs. |
+| <img src="https://cdn.jsdelivr.net/npm/lucide-static@0.454.0/icons/layers.svg" width="22" height="22"> | **Isolated sessions** | Use global config with `PinterestDL.configure` or independent clients with `PinterestDL.session`. |
+
+## Screenshots
+
+<div align="center">
+  <img src="img/cli-demo.png" alt="CLI Screenshot" width="700">
+</div>
 
 ## Installation
 
@@ -25,32 +66,33 @@ Pinterest does not provide a public API for resolving direct media URLs from pin
 gem install pinterest-dl
 ```
 
-Or add to your `Gemfile`:
+Or add it to your Gemfile:
 
 ```ruby
 gem 'pinterest-dl'
 ```
 
-Requires Ruby **3.0 or newer** (no external runtime dependencies).
+Needs Ruby 3.0+ No extra runtime gems
 
 ## Quick Start
 
 ### Interactive TUI
 
-Launch the interactive terminal interface with gallery browsing, live previews, quality selection, mouse controls, and batch downloading:
+Gallery browsing, live previews, quality picker, mouse support, and batch download:
 
 ```bash
 pinterest-dl tui
-# or simply run `pinterest-dl` in an interactive terminal
+# or just run `pinterest-dl` in a real terminal
 ```
 
-Proxy environment variables (`HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY`) and local `cookies.txt` files are detected automatically.
+Proxy env vars (`HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY`) and a local `cookies.txt` are picked up automatically.
 
-**Image preview rendering** depends on your terminal's graphics support:
-- **Full-resolution native images (recommended):** Works out of the box in **Kitty**, **Ghostty**, **WezTerm**, **Konsole** (Kitty Graphics Protocol), **iTerm2** / **Tabby** / **Hyper** / **Warp** (iTerm2 Inline Images), and **Windows Terminal** / **Foot** / **mlterm** / **Contour** (Sixel with `chafa` or `img2sixel`).
-- **Standard X11 terminals (GNOME Terminal, Pop!_OS Terminal, XFCE4 Terminal, Alacritty):** Require `ueberzugpp` for native unpixelated overlays. Without `ueberzugpp`, standard text-only terminals automatically fall back to 24-bit half-block previews (via `ffmpeg`, ImageMagick, `chafa`, Pillow, or `djpeg`).
+**Image preview** depends on your terminal:
 
-#### Optional: Install `ueberzugpp` on Ubuntu / Pop!_OS
+- **Full-res native images:** Kitty, Ghostty, WezTerm, Konsole (Kitty Graphics Protocol), iTerm2 / Tabby / Hyper / Warp (iTerm2 Inline Images), Windows Terminal / Foot / mlterm / Contour (Sixel via `chafa` or `img2sixel`)
+- **Standard X11 terminals** (GNOME Terminal, Pop!_OS Terminal, XFCE4 Terminal, Alacritty): install `ueberzugpp` for clean overlays. Without it you get half-block previews through `ffmpeg`, ImageMagick, `chafa`, Pillow, or `djpeg`.
+
+Optional install on Ubuntu / Pop!_OS:
 
 ```bash
 echo 'deb http://download.opensuse.org/repositories/home:/justkidding/xUbuntu_26.04/ /' | sudo tee /etc/apt/sources.list.d/home:justkidding.list
@@ -59,26 +101,26 @@ sudo apt update
 sudo apt install ueberzugpp
 ```
 
-*(Replace `xUbuntu_26.04` with `xUbuntu_24.04` or `xUbuntu_22.04` for earlier Ubuntu or Pop!_OS releases.)*
+*(Use `xUbuntu_24.04` or `xUbuntu_22.04` for older releases.)*
 
 ### CLI
 
 ```bash
-# Print direct image or video URL
+# print the direct URL
 pinterest-dl image https://www.pinterest.com/pin/1234567890123456789/
 pinterest-dl video https://pin.it/3vYQ7zmM5
 
-# Download a pin image or video to disk (displays live progress bar)
+# download it (live progress bar)
 pinterest-dl image https://www.pinterest.com/pin/1234567890123456789/ -o pin.jpg
 pinterest-dl video https://pin.it/3vYQ7zmM5 -o video.mp4
 
-# Inspect both image and video URLs as JSON
+# both image and video URLs as JSON
 pinterest-dl media https://www.pinterest.com/pin/1234567890123456789/
 
-# Search pins and download 50 results using 6 worker threads
+# search and download 50 results with 6 workers
 pinterest-dl search "architectural photography" -n 50 -j 6 -o ./downloads
 
-# Download only videos from a board, skipping existing files
+# only videos from a board, skip files that already exist
 pinterest-dl board https://www.pinterest.com/username/board-name/ --videos-only -n 100 -s -o ./videos
 ```
 
@@ -87,13 +129,11 @@ pinterest-dl board https://www.pinterest.com/username/board-name/ --videos-only 
 ```ruby
 require 'pinterest-dl'
 
-# Extract direct URLs
 image_url = PinterestDL.get_image_url('https://www.pinterest.com/pin/1234567890123456789/')
 video_url = PinterestDL.get_video_url('https://www.pinterest.com/pin/1234567890123456789/')
 media     = PinterestDL.get_media('https://www.pinterest.com/pin/1234567890123456789/', quality: :'736x')
 # => { image_url: "https://i.pinimg.com/736x/...", video_url: nil }
 
-# Download a single file
 PinterestDL.download(image_url, path: 'downloads/pin.jpg', resume: true)
 ```
 
@@ -101,7 +141,7 @@ PinterestDL.download(image_url, path: 'downloads/pin.jpg', resume: true)
 
 ### Isolated Sessions
 
-Use `PinterestDL.session` when running multiple configurations or accounts concurrently without mutating `PinterestDL.config`:
+Handy when you need multiple configs or accounts without touching the global config:
 
 ```ruby
 session = PinterestDL.session(
@@ -118,19 +158,18 @@ report = session.download_batch(pins, dir: './downloads', collision_strategy: :r
 ### Search and Boards
 
 ```ruby
-# Search returns an Array of pin hashes ({ id:, pin_url:, title:, description:, creator:, image_url:, video_url: })
+# each pin is a hash: id, pin_url, title, description, creator, image_url, video_url
 pins = PinterestDL.search('minimalist poster', limit: 25, type: :all)
 image_urls = PinterestDL.search_images('sunset', limit: 10)
 video_urls = PinterestDL.search_videos('motion graphics', limit: 5)
 
-# Fetch pins from a board or board section
 board_pins   = PinterestDL.board('https://www.pinterest.com/username/board-name/', limit: 100)
 section_pins = PinterestDL.board('https://www.pinterest.com/username/board-name/section-slug/', limit: 50)
 ```
 
-### Batch Downloading & Collision Strategies
+### Batch Downloading
 
-`download_batch` accepts an array of URLs or pin hashes and returns a `PinterestDL::DownloadReport` (which supports both method access like `report.succeeded` and Hash access like `report[:succeeded]`):
+`download_batch` takes URLs or pin hashes and returns a `PinterestDL::DownloadReport` (method access or Hash access both work):
 
 ```ruby
 urls = PinterestDL.search_images('mountains', limit: 40)
@@ -152,30 +191,30 @@ puts "Failed:    #{report.failed.size}"
 puts "Bytes:     #{report.bytes_downloaded}"
 ```
 
-### Configuration
+## Configuration
 
 ```ruby
 PinterestDL.configure do |c|
   c.cookies             = File.expand_path('~/cookies.txt') # or 'sessionid=...; csrftoken=...'
   c.quality             = :originals  # :originals, :"1200x", :"736x", :"564x", :"474x", :"236x"
-  c.open_timeout        = 10          # seconds
-  c.read_timeout        = 20          # seconds
-  c.write_timeout       = 20          # seconds
-  c.max_retries         = 3           # retries on transient network / 429 / 5xx errors
-  c.retry_wait          = 1.0         # base backoff in seconds
-  c.max_retry_wait      = 30.0        # maximum backoff cap in seconds
-  c.retry_jitter        = 0.25        # random jitter ratio added to backoff
-  c.rate_limit_interval = 0.5         # minimum seconds between requests
-  c.concurrency         = 4           # worker threads for download_batch
-  c.overwrite           = true        # overwrite existing files when collision_strategy is not set
-  c.resume              = true        # resume partial .part files via HTTP Range
-  c.deduplicate         = true        # skip duplicate URLs within a batch
+  c.open_timeout        = 10
+  c.read_timeout        = 20
+  c.write_timeout       = 20
+  c.max_retries         = 3
+  c.retry_wait          = 1.0
+  c.max_retry_wait      = 30.0
+  c.retry_jitter        = 0.25
+  c.rate_limit_interval = 0.5
+  c.concurrency         = 4
+  c.overwrite           = true
+  c.resume              = true
+  c.deduplicate         = true
   c.collision_strategy  = :rename     # :rename, :skip, or :overwrite
-  c.max_file_size       = 500 * 1024 * 1024 # 500 MB cap per file
-  c.max_speed           = nil         # e.g. '500K' or '2M' per worker
-  c.verify_content_type = true        # reject HTML/JSON error responses and empty payloads
-  c.proxy               = nil         # HTTP/HTTPS proxy URL (defaults to HTTPS_PROXY / HTTP_PROXY)
-  c.max_cache_entries   = 256         # LRU cache size for GET requests
+  c.max_file_size       = 500 * 1024 * 1024
+  c.max_speed           = nil         # e.g. '500K' or '2M'
+  c.verify_content_type = true
+  c.proxy               = nil         # falls back to HTTPS_PROXY / HTTP_PROXY
+  c.max_cache_entries   = 256
 end
 ```
 
@@ -190,55 +229,69 @@ Usage:
   pinterest-dl board URL [-n LIMIT] [-t TYPE] [-q QUALITY] [-j JOBS] [-o DIR] [options]
 
 Options:
-  -o, --output PATH          File or directory to save downloaded media (omit to print direct URL)
-  -n, --limit N              Max number of results or files to download (default 25)
-  -t, --type TYPE            Filter media type: all, image, video, pin (default all)
-      --images-only          Shortcut for --type image
-      --videos-only          Shortcut for --type video
-  -q, --quality Q            Image quality: originals, 1200x, 736x, 564x, 474x, 236x
-  -c, --cookies STR|FILE     Cookie header string or Netscape cookies.txt file path
-  -j, --jobs N               Parallel download workers for batch downloads (default 4)
-  -s, --skip-existing        Skip files that already exist on disk
-      --resume               Resume partially downloaded .part files (default true)
-      --no-resume            Restart interrupted downloads from scratch
-      --max-size BYTES       Maximum allowed file size (e.g. 100M, 500M)
-      --max-speed RATE       Throttle download speed per worker (e.g. 500K, 2M)
-      --format FMT           Output report format: text, json, csv, quiet (default text)
-      --json                 Output results and summary in JSON format
-      --no-progress          Disable live progress bar output
-      --non-interactive      Run without interactive terminal animations or prompts
-      --proxy URL            HTTP/HTTPS proxy URL
-      --timeout SEC          Network read/open timeout in seconds
-      --retries N            Max retries on transient failures (default 3)
-  -v, --verbose              Enable debug logging
-      --version              Print version and exit
-  -h, --help                 Show this help
+  -o, --output PATH          file or directory to save to (omit to print the URL)
+  -n, --limit N              max results (default 25)
+  -t, --type TYPE            all, image, video, pin (default all)
+      --images-only          same as --type image
+      --videos-only          same as --type video
+  -q, --quality Q            originals, 1200x, 736x, 564x, 474x, 236x
+  -c, --cookies STR|FILE     cookie header or Netscape cookies.txt
+  -j, --jobs N               parallel workers (default 4)
+  -s, --skip-existing        skip files that already exist
+      --resume               resume .part files (default on)
+      --no-resume            start over instead
+      --max-size BYTES       max file size (e.g. 100M, 500M)
+      --max-speed RATE       throttle per worker (e.g. 500K, 2M)
+      --format FMT           text, json, csv, quiet (default text)
+      --json                 JSON output
+      --no-progress          hide the progress bar
+      --non-interactive      no animations or prompts
+      --proxy URL            http/https proxy
+      --timeout SEC          network timeout
+      --retries N            retries on transient failures (default 3)
+  -v, --verbose              debug logging
+      --version              print version
+  -h, --help                 show help
 ```
 
 ## Error Handling
 
-All library exceptions inherit from `PinterestDL::Error < StandardError` and expose `#url`, `#status_code`, and `#cause_error`:
+Everything inherits from `PinterestDL::Error`. Most of them expose `#url`, `#status_code`, and `#cause_error`.
 
-| Exception Class | Cause |
-| :--- | :--- |
-| `PinterestDL::NotFoundError` | Pin, board, section, or media URL was not found (`404` or missing media). |
-| `PinterestDL::AuthenticationError` | HTTP `401` — authentication cookies are required. |
-| `PinterestDL::ForbiddenError` | HTTP `403` — request blocked by Pinterest (invalid CSRF/cookies or IP restriction). |
-| `PinterestDL::RateLimitError` | HTTP `429` — rate limited (`#retry_after` contains server hint when present). |
-| `PinterestDL::RangeNotSatisfiableError` | HTTP `416` — requested byte range is outside the remote resource size. |
-| `PinterestDL::TimeoutError` | Connection, read, or write timeout after retries. |
-| `PinterestDL::ConnectionError` | Socket reset, DNS failure, or dropped connection. |
-| `PinterestDL::RedirectError` | Redirect loop, missing `Location`, or untrusted cross-domain redirect target. |
-| `PinterestDL::InvalidURLError` / `SSRFError` | Malformed URL, non-Pinterest host, embedded credentials, or blocked private/loopback IP. |
-| `PinterestDL::InvalidResponseError` | Malformed JSON or invalid HTTP `206` `Content-Range` header. |
-| `PinterestDL::FileTooLargeError` | Remote `Content-Length` or streamed bytes exceeded `max_file_size`. |
-| `PinterestDL::IncompleteDownloadError` | Stream ended before receiving the declared `Content-Length` / `Content-Range`. |
-| `PinterestDL::InvalidMediaError` | Server returned `text/html` / `application/json` instead of media. |
-| `PinterestDL::DiskSpaceError` | Insufficient disk space (`ENOSPC`) or non-writable target directory (`EACCES`/`EROFS`). |
+| Exception | When it happens |
+|-----------|-----------------|
+| `NotFoundError` | pin, board, section, or media not found |
+| `AuthenticationError` | 401 — need cookies |
+| `ForbiddenError` | 403 — Pinterest blocked the request |
+| `RateLimitError` | 429 — slow down (`#retry_after` when present) |
+| `RangeNotSatisfiableError` | 416 — bad byte range |
+| `TimeoutError` | connection or read timed out |
+| `ConnectionError` | socket reset, DNS failure, dropped connection |
+| `RedirectError` | redirect loop or untrusted redirect target |
+| `InvalidURLError` / `SSRFError` | bad URL or private/loopback address |
+| `InvalidResponseError` | bad JSON or invalid `206` Content-Range |
+| `FileTooLargeError` | over `max_file_size` |
+| `IncompleteDownloadError` | stream ended early |
+| `InvalidMediaError` | got HTML/JSON instead of media |
+| `DiskSpaceError` | no space or directory not writable |
 
-## Development & Testing
+## FAQ
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development instructions.
+**Pinterest is blocked here.**  
+Pass `--proxy http://127.0.0.1:PORT` or set `HTTPS_PROXY`. The TUI also reads `HTTPS_PROXY` / `HTTP_PROXY` / `ALL_PROXY` on its own.
+
+**I keep getting 401 or 403.**  
+Some pins and boards want a logged-in session. Export a Netscape `cookies.txt` and pass `-c cookies.txt` (or `c.cookies` in Ruby). Cookies stay on Pinterest hosts. They never go to the CDN.
+
+**Which quality should I use?**  
+`:originals` is the full file. `1200x` and `736x` are smaller and fine for previews. Videos always come as the highest `.mp4` Pinterest serves.
+
+**Will it resume a half-finished file?**  
+Yes. Interrupted downloads leave a `.part` file and continue from there unless you pass `--no-resume`.
+
+## Development
+
+See [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ```bash
 bundle install
